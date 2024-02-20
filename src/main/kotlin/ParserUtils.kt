@@ -1,11 +1,11 @@
 package org.old
 
-import org.antlr.v4.runtime.CharStreams
-import org.antlr.v4.runtime.CommonTokenStream
+import org.antlr.v4.runtime.*
 import org.antlr.v4.runtime.tree.Tree
 import org.antlr.v4.runtime.tree.Trees
 import org.old.grammar.stellaLexer
 import org.old.grammar.stellaParser
+
 
 fun Tree.getPrettyString(parser: stellaParser): String {
     fun inner(prefix: String, tree: Tree, isNotLast: Boolean): String = buildString {
@@ -24,8 +24,31 @@ fun Tree.getPrettyString(parser: stellaParser): String {
     return inner("", this, false)
 }
 
-fun getParser(source: String): stellaParser {
+
+class StellaErrorListener : BaseErrorListener() {
+    private val syntaxErrors: MutableList<String> = ArrayList()
+
+    fun getSyntaxErrors(): List<String> {
+        return syntaxErrors
+    }
+
+    override fun syntaxError(
+        recognizer: Recognizer<*, *>?,
+        offendingSymbol: Any?,
+        line: Int, charPositionInLine: Int,
+        msg: String?, e: RecognitionException?
+    ) {
+        syntaxErrors.add("line $line:$charPositionInLine $msg")
+    }
+}
+
+fun getParser(source: String): Pair<stellaParser, StellaErrorListener> {
     val lexer = stellaLexer(CharStreams.fromString(source))
     val tokens = CommonTokenStream(lexer)
-    return stellaParser(tokens)
+    val parser = stellaParser(tokens)
+    val errorListener = StellaErrorListener()
+    parser.removeErrorListeners()
+    parser.addErrorListener(errorListener)
+    return Pair(parser, errorListener)
 }
+

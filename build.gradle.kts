@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     kotlin("jvm") version "1.9.22"
     java
@@ -31,8 +33,8 @@ tasks.generateGrammarSource {
     outputDirectory = outputDirectory.resolve(pkg.split(".").joinToString("/"))
    }
 
-tasks.compileKotlin {
-    dependsOn(tasks.generateGrammarSource)
+tasks.withType<KotlinCompile>().configureEach {
+    dependsOn(tasks.withType<AntlrTask>())
 }
 
 // Fat JAR
