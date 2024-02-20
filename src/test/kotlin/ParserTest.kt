@@ -23,8 +23,8 @@ class ParserTest{
             (0)
         }
         """.trimIndent()
-        val (parser, errListener) = getParser(source)
-        val program = parser.start_Program()
+        val (parser, errListener, program) = getParser(source)
+
         assertEquals(0, errListener.getSyntaxErrors().size)
         println(program.getPrettyString(parser))
     }
@@ -39,8 +39,7 @@ class ParserTest{
             val source = "la la"
         }
         """.trimIndent()
-        val (parser, errListener) = getParser(source)
-        parser.start_Program()
+        val (_, errListener, _) = getParser(source)
         assertTrue(errListener.getSyntaxErrors().isNotEmpty())
         errListener.getSyntaxErrors().forEach { println(it) }
     }

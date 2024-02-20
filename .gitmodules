@@ -1,0 +1,3 @@
+[submodule "src/test/resources/stella-tests"]
+	path = src/test/resources/stella-tests
+	url = git@github.com:AbsoluteNikola/stella-tests.git

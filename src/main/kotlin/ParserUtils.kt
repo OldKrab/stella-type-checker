@@ -1,6 +1,7 @@
 package org.old
 
 import org.antlr.v4.runtime.*
+import org.antlr.v4.runtime.tree.ParseTree
 import org.antlr.v4.runtime.tree.Tree
 import org.antlr.v4.runtime.tree.Trees
 import org.old.grammar.stellaLexer
@@ -42,13 +43,13 @@ class StellaErrorListener : BaseErrorListener() {
     }
 }
 
-fun getParser(source: String): Pair<stellaParser, StellaErrorListener> {
+fun getParser(source: String): Triple<stellaParser, StellaErrorListener, ParseTree> {
     val lexer = stellaLexer(CharStreams.fromString(source))
     val tokens = CommonTokenStream(lexer)
     val parser = stellaParser(tokens)
     val errorListener = StellaErrorListener()
     parser.removeErrorListeners()
     parser.addErrorListener(errorListener)
-    return Pair(parser, errorListener)
+    return Triple(parser, errorListener, parser.start_Program())
 }
 

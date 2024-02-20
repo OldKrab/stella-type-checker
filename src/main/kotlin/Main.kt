@@ -7,9 +7,9 @@ import kotlin.system.exitProcess
 
 fun main() {
     val source = System.`in`.bufferedReader().readText()
-    val (parser, errorListener) = getParser(source)
+    val (_, errorListener, program) = getParser(source)
 
-    val program = parser.start_Program()
+
     if (errorListener.getSyntaxErrors().isNotEmpty()) {
         System.err.println("Got parse errors:")
         for (syntaxError in errorListener.getSyntaxErrors())
@@ -18,7 +18,7 @@ fun main() {
     }
 
     try {
-        checkTypes(program, parser)
+        checkTypes(program)
     } catch (e: TypeCheckException) {
         System.err.println("Got type check error:")
         println(e)

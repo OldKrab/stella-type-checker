@@ -21,6 +21,7 @@ repositories {
 dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.8.10")
     antlr("org.antlr:antlr4:4.13.1")
+
 }
 
 tasks.test {
@@ -29,7 +30,7 @@ tasks.test {
 
 tasks.generateGrammarSource {
     val pkg = "org.old.grammar"
-    arguments = arguments + listOf("-package", pkg)
+    arguments = arguments + listOf("-package", pkg, "-visitor")
     outputDirectory = outputDirectory.resolve(pkg.split(".").joinToString("/"))
    }
 
