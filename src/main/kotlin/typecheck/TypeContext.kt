@@ -12,4 +12,9 @@ class TypeContext {
     fun removeVariable(name: String) {
         vars[name]!!.removeLast()
     }
+
+    fun removeAllVariables(names: Iterable<String>) {
+        for (name in names)
+            vars[name]!!.removeLast()
+    }
 }

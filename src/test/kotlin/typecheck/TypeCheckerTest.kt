@@ -67,62 +67,62 @@ class TypeCheckerTest {
 
     @Test
     fun ERROR_MISSING_RECORD_FIELDS() {
-        runBadTests<TodoException>("ERROR_MISSING_RECORD_FIELDS")
+        runBadTests<MissingRecordFields>("ERROR_MISSING_RECORD_FIELDS")
     }
 
     @Test
     fun ERROR_NOT_A_FUNCTION() {
-        runBadTests<TodoException>("ERROR_NOT_A_FUNCTION")
+        runBadTests<NotFunctionApplication>("ERROR_NOT_A_FUNCTION")
     }
 
     @Test
     fun ERROR_NOT_A_RECORD() {
-        runBadTests<TodoException>("ERROR_NOT_A_RECORD")
+        runBadTests<NotRecord>("ERROR_NOT_A_RECORD")
     }
 
     @Test
     fun ERROR_NOT_A_TUPLE() {
-        runBadTests<TodoException>("ERROR_NOT_A_TUPLE")
+        runBadTests<NotTuple>("ERROR_NOT_A_TUPLE")
     }
 
     @Test
     fun ERROR_TUPLE_INDEX_OUT_OF_BOUNDS() {
-        runBadTests<TodoException>("ERROR_TUPLE_INDEX_OUT_OF_BOUNDS")
+        runBadTests<TupleIndexOOB>("ERROR_TUPLE_INDEX_OUT_OF_BOUNDS")
     }
 
     @Test
     fun ERROR_UNEXPECTED_FIELD_ACCESS() {
-        runBadTests<TodoException>("ERROR_UNEXPECTED_FIELD_ACCESS")
+        runBadTests<UnexpectedFieldAccess>("ERROR_UNEXPECTED_FIELD_ACCESS")
     }
 
     @Test
     fun ERROR_UNEXPECTED_LAMBDA() {
-        runBadTests<TodoException>("ERROR_UNEXPECTED_LAMBDA")
+        runBadTests<UnexpectedLambda>("ERROR_UNEXPECTED_LAMBDA")
     }
 
     @Test
     fun ERROR_UNEXPECTED_RECORD() {
-        runBadTests<TodoException>("ERROR_UNEXPECTED_RECORD")
+        runBadTests<UnexpectedRecord>("ERROR_UNEXPECTED_RECORD")
     }
 
     @Test
     fun ERROR_UNEXPECTED_RECORD_FIELDS() {
-        runBadTests<TodoException>("ERROR_UNEXPECTED_RECORD_FIELDS")
+        runBadTests<UnexpectedRecordFields>("ERROR_UNEXPECTED_RECORD_FIELDS")
     }
 
     @Test
     fun ERROR_UNEXPECTED_TUPLE() {
-        runBadTests<TodoException>("ERROR_UNEXPECTED_TUPLE")
+        runBadTests<UnexpectedTuple>("ERROR_UNEXPECTED_TUPLE")
     }
 
     @Test
     fun ERROR_UNEXPECTED_TUPLE_LENGTH() {
-        runBadTests<TodoException>("ERROR_UNEXPECTED_TUPLE_LENGTH")
+        runBadTests<UnexpectedTupleLength>("ERROR_UNEXPECTED_TUPLE_LENGTH")
     }
 
     @Test
     fun ERROR_UNEXPECTED_TYPE_FOR_EXPRESSION() {
-        runBadTests<TodoException>("ERROR_UNEXPECTED_TYPE_FOR_EXPRESSION")
+        runBadTests<UnexpectedExprType>("ERROR_UNEXPECTED_TYPE_FOR_EXPRESSION")
     }
 
     @Test
@@ -132,6 +132,6 @@ class TypeCheckerTest {
 
     @Test
     fun ERROR_UNEXPECTED_TYPE_FOR_PARAMETER() {
-        runBadTests<TodoException>("ERROR_UNEXPECTED_TYPE_FOR_PARAMETER")
+        runBadTests<UnexpectedParamType>("ERROR_UNEXPECTED_TYPE_FOR_PARAMETER")
     }
 }

@@ -9,9 +9,12 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
     val typeInfererVisitor = TypeInfererVisitor()
     val variablesDeclarator = VariablesDeclarator()
 
+
     companion object {
         const val NAT_ADD_FUN = "Nat::add"
     }
+
+    override fun visitStart_Program(ctx: stellaParser.Start_ProgramContext) = ctx.program().accept(this)
 
     override fun visitProgram(ctx: stellaParser.ProgramContext) {
         val isMainContains = ctx.decls.filterIsInstance<stellaParser.DeclFunContext>().any { it.name.text == "main" }
@@ -22,15 +25,16 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
     override fun visitDeclFun(ctx: stellaParser.DeclFunContext) {
         variablesDeclarator.declare(ctx)
-        ctx.paramDecls.forEach { variablesDeclarator.declare(it) }
-        ctx.localDecls.forEach { variablesDeclarator.declare(it) }
+        val vars = variablesDeclarator.declareAll(ctx.paramDecls) + variablesDeclarator.declareAll(ctx.localDecls)
 
         val declReturnType = ctx.returnType.accept(TypeConverter)
-        val actualReturnType = ctx.returnExpr.accept(typeInfererVisitor)
-        if (!isAssignable(actualReturnType, declReturnType)) TODO("$actualReturnType, $declReturnType")
+        typeInfererVisitor.expectType(ctx.returnExpr, declReturnType)
 
-        ctx.paramDecls.forEach { variablesDeclarator.forget(it) }
-        ctx.localDecls.forEach { variablesDeclarator.forget(it) }
+        typeContext.removeAllVariables(vars)
+    }
+
+    override fun defaultResult() {
+        TODO()
     }
 
     object TypeConverter : stellaParserBaseVisitor<Type>() {
@@ -65,56 +69,66 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             return RecordType(fieldsTypes)
         }
 
+        override fun visitTypeList(ctx: stellaParser.TypeListContext): Type {
+            val elemType = ctx.type_.accept(TypeConverter)
+            return ListType(elemType)
+        }
+
 
     }
 
-    inner class VariablesDeclarator : stellaParserBaseVisitor<Unit>() {
-        var isDeclaring = true
-        fun declare(ctx: ParseTree) {
-            isDeclaring = true
-            ctx.accept(this)
+    inner class VariablesDeclarator : stellaParserBaseVisitor<String>() {
+        fun declare(ctx: ParseTree): String {
+            return ctx.accept(this)
         }
 
-        fun forget(ctx: ParseTree) {
-            isDeclaring = false
-            ctx.accept(this)
+        fun declareAll(trees: Iterable<ParseTree>): List<String> {
+            return trees.map { it.accept(this) }
         }
 
-        override fun defaultResult() {
+        override fun defaultResult(): String {
             TODO()
         }
 
-        override fun visitDeclFun(ctx: stellaParser.DeclFunContext) {
+        override fun visitDeclFun(ctx: stellaParser.DeclFunContext): String {
             val funName = ctx.name.text
 
-            if (isDeclaring) {
-                val paramsTypes = ctx.paramDecls.map { it.paramType.accept(TypeConverter) }
-                val retType = ctx.returnType.accept(TypeConverter)
-                val funType = FunType(paramsTypes, retType)
-                typeContext.addVariable(funName, funType)
-            } else
-                typeContext.removeVariable(funName)
+            val paramsTypes = ctx.paramDecls.map { it.paramType.accept(TypeConverter) }
+            val retType = ctx.returnType.accept(TypeConverter)
+            val funType = FunType(paramsTypes, retType)
+            typeContext.addVariable(funName, funType)
+            return funName
         }
 
-        override fun visitParamDecl(ctx: stellaParser.ParamDeclContext) {
+        override fun visitParamDecl(ctx: stellaParser.ParamDeclContext): String {
             val varName = ctx.name.text
-            if (isDeclaring)
-                typeContext.addVariable(varName, ctx.paramType.accept(TypeConverter))
-            else
-                typeContext.removeVariable(varName)
+            typeContext.addVariable(varName, ctx.paramType.accept(TypeConverter))
+            return varName
         }
 
-        override fun visitPatternBinding(ctx: stellaParser.PatternBindingContext) {
+        override fun visitPatternBinding(ctx: stellaParser.PatternBindingContext): String {
             val pat = ctx.pat
             val varName = if (pat is stellaParser.PatternVarContext) pat.name.text else TODO()
-            if (isDeclaring)
-                typeContext.addVariable(varName, ctx.rhs.accept(typeInfererVisitor))
-            else
-                typeContext.removeVariable(varName)
+            typeContext.addVariable(varName, ctx.rhs.accept(typeInfererVisitor))
+            return varName
         }
     }
 
     inner class TypeInfererVisitor : stellaParserBaseVisitor<Type>() {
+        private var expectedType: Type? = null
+
+        fun expectType(expr: ParseTree, expectedType: Type): Type {
+            if (this.expectedType != null) {
+                val prevType = this.expectedType
+                this.expectedType = expectedType
+                expr.accept(this)
+                this.expectedType = prevType
+            } else {
+                this.expectedType = expectedType
+                expr.accept(this)
+            }
+            return expectedType
+        }
 
         override fun defaultResult(): Type {
             TODO()
@@ -150,18 +164,18 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitDotTuple(ctx: stellaParser.DotTupleContext): Type {
-            val tuple = ctx.expr_.accept(this)
-            if (tuple !is TupleType) TODO()
+            val tupleType = ctx.expr_.accept(this)
+            if (tupleType !is TupleType) throw NotTuple(ctx.expr_, tupleType)
             val idx = ctx.index.text.toInt() - 1
-            if (idx < 0 || idx >= tuple.fieldsTypes.size) TODO()
-            return tuple.fieldsTypes[idx]
+            if (idx < 0 || idx >= tupleType.fieldsTypes.size) TODO()
+            return tupleType.fieldsTypes[idx]
         }
 
         override fun visitDotRecord(ctx: stellaParser.DotRecordContext): Type {
-            val record = ctx.expr_.accept(this)
-            if (record !is RecordType) TODO()
+            val recordType = ctx.expr_.accept(this)
+            if (recordType !is RecordType) throw NotRecord(ctx.expr_, recordType)
             val label = ctx.label.text
-            val type = record.fieldsTypes[label] ?: TODO()
+            val type = recordType.fieldsTypes[label] ?: TODO()
             return type
         }
 
@@ -185,17 +199,18 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         override fun visitConstTrue(ctx: stellaParser.ConstTrueContext): Type = BoolType
 
         override fun visitAbstraction(ctx: stellaParser.AbstractionContext): Type {
-            ctx.paramDecls.forEach { variablesDeclarator.declare(it) }
+            val vars = variablesDeclarator.declareAll(ctx.paramDecls)
             val paramsTypes = ctx.paramDecls.map { it.accept(this) }
             val retType = ctx.returnExpr.accept(this)
-            ctx.paramDecls.forEach { variablesDeclarator.forget(it) }
+            typeContext.removeAllVariables(vars)
             return FunType(paramsTypes, retType)
         }
 
         override fun visitLet(ctx: stellaParser.LetContext): Type {
+            val params = variablesDeclarator.declareAll(ctx.patternBindings)
             ctx.patternBindings.forEach { variablesDeclarator.declare(it) }
             val type = ctx.body.accept(this)
-            ctx.patternBindings.forEach { variablesDeclarator.forget(it) }
+            typeContext.removeAllVariables(params)
             return type
         }
 
@@ -214,21 +229,49 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
         override fun visitApplication(ctx: stellaParser.ApplicationContext): Type {
             val funType = ctx.`fun`.accept(this)
-            if (funType !is FunType) TODO()
-            val argsTypes = ctx.args.map { it.accept(this) }
-            argsTypes.zip(funType.paramsTypes)
-                .forEach { (argType, paramType) -> if (!isAssignable(argType, paramType)) TODO() }
+            if (funType !is FunType) throw NotFunctionApplication(ctx.`fun`, funType)
+            ctx.args.zip(funType.paramsTypes).map { (argExpr, paramType) -> expectType(argExpr, paramType) }
             return funType.retType
         }
 
         override fun visitIf(ctx: stellaParser.IfContext): Type {
-            val condType = ctx.condition.accept(this)
+            expectType(ctx.condition, BoolType)
             val thenType = ctx.thenExpr.accept(this)
             val elseType = ctx.elseExpr.accept(this)
-            if (!isAssignable(condType, BoolType)) TODO()
             if (!isAssignable(thenType, elseType)) TODO()
             return thenType
         }
 
+        private fun expectList(list: stellaParser.ExprContext): Type {
+            val exprType = list.accept(this)
+            if (exprType !is ListType) throw NotList(list, exprType)
+            return exprType
+        }
+
+        override fun visitList(ctx: stellaParser.ListContext): Type {
+            val expectedType = expectedType ?: TODO()
+            if (expectedType !is ListType) throw UnexpectedList(ctx, expectedType)
+            ctx.exprs.forEach { expectType(it, expectedType.elementsType) }
+            return expectedType
+        }
+
+        override fun visitIsEmpty(ctx: stellaParser.IsEmptyContext): Type {
+            val expectedType = expectedType
+            if(expectedType != null && !isAssignable(BoolType, expectedType)) TODO()
+            expectList(ctx.list)
+            return BoolType
+        }
+
+        override fun visitHead(ctx: stellaParser.HeadContext): Type {
+            val expectedType = expectedType
+            return if (expectedType != null)
+                expectType(ctx.list, ListType(expectedType))
+            else
+                expectList(ctx.list)
+        }
+
+        override fun visitTail(ctx: stellaParser.TailContext): Type = expectList(ctx.list)
     }
+
+
 }
