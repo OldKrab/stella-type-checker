@@ -11,6 +11,6 @@ data class ListType(val elementsType: Type) : Type
 data class FunType(val paramsTypes: List<Type>, val retType: Type): Type
 
 
-fun isAssignable(type: Type, to: Type): Boolean {
+fun isTypesEqual(type: Type, to: Type): Boolean {
     return type == to
 }

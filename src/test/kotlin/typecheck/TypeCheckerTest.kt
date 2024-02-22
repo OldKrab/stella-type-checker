@@ -85,6 +85,11 @@ class TypeCheckerTest {
         runBadTests<NotTuple>("ERROR_NOT_A_TUPLE")
     }
 
+
+    @Test
+    fun ERROR_NOT_A_LIST() {
+        runBadTests<NotList>("ERROR_NOT_A_LIST")
+    }
     @Test
     fun ERROR_TUPLE_INDEX_OUT_OF_BOUNDS() {
         runBadTests<TupleIndexOOB>("ERROR_TUPLE_INDEX_OUT_OF_BOUNDS")
@@ -93,6 +98,11 @@ class TypeCheckerTest {
     @Test
     fun ERROR_UNEXPECTED_FIELD_ACCESS() {
         runBadTests<UnexpectedFieldAccess>("ERROR_UNEXPECTED_FIELD_ACCESS")
+    }
+
+    @Test
+    fun ERROR_UNEXPECTED_LIST() {
+        runBadTests<UnexpectedList>("ERROR_UNEXPECTED_LIST")
     }
 
     @Test

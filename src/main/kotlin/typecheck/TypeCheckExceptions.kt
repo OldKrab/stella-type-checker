@@ -43,17 +43,15 @@ class UnexpectedList(val expr: ParserRuleContext, val expectedType: Type) : Expr
 
 }
 
-class MissingRecordFields(val expr: ParserRuleContext, val actualType: RecordType, val expectedType: RecordType) :
-    ExprException(expr)
+class MissingRecordFields(val expr: ParserRuleContext, val unexpectedFields: Iterable<String>) : ExprException(expr)
 
-class UnexpectedRecordFields(val expr: ParserRuleContext, val actualType: RecordType, val expectedType: RecordType) :
-    ExprException(expr)
+class UnexpectedRecordFields(val expr: ParserRuleContext, val unexpectedFields: Iterable<String>) : ExprException(expr)
 
 class UnexpectedFieldAccess(val expr: ParserRuleContext, val actualType: RecordType, val accessedField: String) :
     ExprException(expr)
 
-class TupleIndexOOB(val expr: ParserRuleContext, val actualType: TupleType, val accessedIndex: Int) :
+class TupleIndexOOB(val expr: ParserRuleContext, val actualSize: Int, val accessedIndex: Int) :
     ExprException(expr)
 
-class UnexpectedTupleLength(val expr: ParserRuleContext, val actualType: TupleType, val expectedLength: Int) :
+class UnexpectedTupleLength(val expr: ParserRuleContext, val actualSize: Int, val expectedLength: Int) :
     ExprException(expr)
