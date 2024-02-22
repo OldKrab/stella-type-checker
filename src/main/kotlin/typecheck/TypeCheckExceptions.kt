@@ -12,13 +12,15 @@ fun getLineText(tokenStream: CharStream, line: Int): String {
 }
 
 abstract class TypeCheckException : Exception() {
-    override fun toString(): String {
-        return getDescription()
-    }
 
     open fun getDescription(): String = "${this::class.simpleName}"
     abstract fun getTag(): String
-
+    override fun toString(): String {
+        return """
+            |tag: [${getTag()}]
+            |error: ${getDescription()} 
+        """.trimMargin()
+    }
 }
 
 
@@ -121,15 +123,18 @@ class UnexpectedList(expr: ParserRuleContext, private val expectedType: Type) : 
 
 }
 
-class MissingRecordFields(expr: ParserRuleContext, private val record: RecordType, private val missingFields: Iterable<String>) : ExprException(expr) {
+class MissingRecordFields(
+    expr: ParserRuleContext, private val record: RecordType, private val missingFields: Iterable<String>
+) : ExprException(expr) {
     override fun getTag(): String = "ERROR_MISSING_RECORD_FIELDS"
     override fun getDescription(): String {
         return "missing fields (${missingFields.joinToString(", ") { "'$it'" }}) for record $record"
     }
 }
 
-class UnexpectedRecordFields(expr: ParserRuleContext, private val record: RecordType, private val unexpectedFields: Iterable<String>) :
-    ExprException(expr) {
+class UnexpectedRecordFields(
+    expr: ParserRuleContext, private val record: RecordType, private val unexpectedFields: Iterable<String>
+) : ExprException(expr) {
     override fun getTag(): String = "ERROR_UNEXPECTED_RECORD_FIELDS"
     override fun getDescription(): String {
         return "unexpected fields (${unexpectedFields.joinToString(", ") { "'$it'" }}) for record $record"
