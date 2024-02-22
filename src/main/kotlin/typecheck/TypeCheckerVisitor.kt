@@ -5,6 +5,9 @@ import org.antlr.v4.runtime.tree.ParseTree
 import org.old.grammar.stellaParser
 import org.old.grammar.stellaParserBaseVisitor
 
+/***
+ * Main class for type checking. Walk parse tree with context and infer or check expected types
+ */
 class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
     private val typeContext = TypeContext()
     private val typeInfererVisitor = TypeInfererVisitor()
@@ -72,6 +75,9 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         throw NotImplementedError()
     }
 
+    /**
+     * Walk type nodes and create inner type objects from them
+     */
     inner class TypeConverterVisitor : stellaParserBaseVisitor<Type>() {
 
         override fun visitTypeNat(ctx: stellaParser.TypeNatContext?): Type = NatType
@@ -81,18 +87,14 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         override fun visitTypeBool(ctx: stellaParser.TypeBoolContext?): Type = BoolType
 
 
-        override fun visitTypeParens(ctx: stellaParser.TypeParensContext): Type {
-            return ctx.type_.accept(this)
-        }
-
         override fun visitTypeFun(ctx: stellaParser.TypeFunContext): Type {
-            val paramTypes = ctx.paramTypes.map { convertType(it) }
+            val paramTypes = ctx.paramTypes.map(::convertType)
             val retType = convertType(ctx.returnType)
             return FunType(paramTypes, retType)
         }
 
         override fun visitTypeTuple(ctx: stellaParser.TypeTupleContext): Type {
-            val fieldsTypes = ctx.types.map { convertType(it) }
+            val fieldsTypes = ctx.types.map(::convertType)
             return TupleType(fieldsTypes)
         }
 
@@ -106,12 +108,19 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             return ListType(elemType)
         }
 
+        override fun visitTypeParens(ctx: stellaParser.TypeParensContext): Type {
+            return ctx.type_.accept(this)
+        }
+
         override fun defaultResult(): Type {
             throw NotImplementedError()
         }
 
     }
 
+    /**
+     * Walk declaration nodes and add to typeContext declared variable. Return variable name to remove them further
+     */
     inner class VariablesDeclarator : stellaParserBaseVisitor<String>() {
 
         override fun visitDeclFun(ctx: stellaParser.DeclFunContext): String {
@@ -142,26 +151,25 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
     }
 
+
+    /**
+     * Walk parse tree and try to infer types of expressions
+     */
     inner class TypeInfererVisitor : stellaParserBaseVisitor<Type>() {
 
         override fun visitVar(ctx: stellaParser.VarContext): Type {
             val varName = ctx.name.text
-
             val varType = typeContext.getVarType(varName) ?: throw UndefinedVariable(ctx)
             return varType
         }
 
-        override fun visitParenthesisedExpr(ctx: stellaParser.ParenthesisedExprContext): Type {
-            return ctx.expr_.accept(this)
-        }
-
         override fun visitTuple(ctx: stellaParser.TupleContext): Type {
-            val paramsTypes = ctx.exprs.map { it.accept(this) }
+            val paramsTypes = ctx.exprs.map(::inferType)
             return TupleType(paramsTypes)
         }
 
         override fun visitRecord(ctx: stellaParser.RecordContext): Type {
-            val paramsTypes = ctx.bindings.associate { Pair(it.name.text, it.rhs.accept(this)) }
+            val paramsTypes = ctx.bindings.associate { Pair(it.name.text, inferType(it.rhs)) }
             return RecordType(paramsTypes)
         }
 
@@ -172,7 +180,7 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitDotTuple(ctx: stellaParser.DotTupleContext): Type {
-            val tupleType = ctx.expr_.accept(this)
+            val tupleType = inferType(ctx.expr_)
             if (tupleType !is TupleType) throw NotTuple(ctx.expr_, tupleType)
             val idx = ctx.index.text.toInt()
             if (idx <= 0 || idx > tupleType.fieldsTypes.size) throw TupleIndexOOB(ctx, tupleType, idx)
@@ -180,14 +188,14 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitDotRecord(ctx: stellaParser.DotRecordContext): Type {
-            val recordType = ctx.expr_.accept(this)
+            val recordType = inferType(ctx.expr_)
             if (recordType !is RecordType) throw NotRecord(ctx.expr_, recordType)
             val label = ctx.label.text
             val type = recordType.fieldsTypes[label] ?: throw UnexpectedFieldAccess(ctx, recordType, label)
             return type
         }
 
-        override fun visitConstUnit(ctx: stellaParser.ConstUnitContext?): Type = UnitType
+        override fun visitConstUnit(ctx: stellaParser.ConstUnitContext): Type = UnitType
 
         override fun visitSucc(ctx: stellaParser.SuccContext): Type {
             expectType(ctx.n, NatType)
@@ -208,28 +216,29 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
         override fun visitLet(ctx: stellaParser.LetContext): Type {
             val params = declareAll(ctx.patternBindings)
-            val type = ctx.body.accept(this)
+            val type = inferType(ctx.body)
             typeContext.removeAllVariables(params)
             return type
         }
 
         override fun visitNatRec(ctx: stellaParser.NatRecContext): Type {
             expectType(ctx.n, NatType)
-            val initialType = ctx.initial.accept(this)
+            val initialType = inferType(ctx.initial)
             expectType(ctx.step, FunType(listOf(NatType), FunType(listOf(initialType), initialType)))
             return initialType
         }
 
         override fun visitApplication(ctx: stellaParser.ApplicationContext): Type {
             val funType = inferAnyFun(ctx.`fun`)
+            // TODO compare args and params counts
             ctx.args.zip(funType.paramsTypes)
-                .map { (argExpr, paramType) -> typeExpectVisitor.expectType(argExpr, paramType) }
+                .forEach { (argExpr, paramType) -> expectType(argExpr, paramType) }
             return funType.retType
         }
 
         override fun visitIf(ctx: stellaParser.IfContext): Type {
             expectType(ctx.condition, BoolType)
-            val thenType = ctx.thenExpr.accept(this)
+            val thenType = inferType(ctx.thenExpr)
             expectType(ctx.elseExpr, thenType)
             return thenType
         }
@@ -237,14 +246,14 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
         override fun visitList(ctx: stellaParser.ListContext): Type {
             if (ctx.exprs.size == 0)
-                throw AmbiguousList(ctx)
+                throw AmbiguousList(ctx) // can not infer without expected type
             val firstType = inferType(ctx.exprs[0])
             for (otherExpr in ctx.exprs.asSequence().drop(1))
                 expectType(otherExpr, firstType)
             return ListType(firstType)
         }
 
-        override fun visitIsEmpty(ctx: stellaParser.IsEmptyContext): Type {
+        override fun visitIsEmpty(ctx: stellaParser.IsEmptyContext): BoolType {
             inferAnyList(ctx.list)
             return BoolType
         }
@@ -253,10 +262,14 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             return inferAnyList(ctx.list).elementsType
         }
 
-        override fun visitTail(ctx: stellaParser.TailContext): Type = inferAnyList(ctx.list)
+        override fun visitTail(ctx: stellaParser.TailContext): ListType = inferAnyList(ctx.list)
 
         override fun visitTerminatingSemicolon(ctx: stellaParser.TerminatingSemicolonContext): Type {
-           return ctx.expr_.accept(this)
+            return ctx.expr_.accept(this)
+        }
+
+        override fun visitParenthesisedExpr(ctx: stellaParser.ParenthesisedExprContext): Type {
+            return ctx.expr_.accept(this)
         }
 
         override fun defaultResult(): Type {
@@ -265,10 +278,18 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
     }
 
+    /**
+     * Walk parse tree and match expected type with actual
+     */
     inner class TypeExpectVisitor : stellaParserBaseVisitor<Unit>() {
         private lateinit var expectedType: Type
 
+        private fun throwIfNotExpected(ctx: ParserRuleContext, actualType: Type){
+            if (!isTypesEqual(actualType, expectedType)) throw UnexpectedExprType(ctx, expectedType, actualType)
+        }
+
         fun expectType(expr: ParseTree, expectedType: Type): Type {
+            // because antlr not generate parametrized visitor, we need store argument in field
             if (this::expectedType.isInitialized) {
                 val prevType = this.expectedType
                 this.expectedType = expectedType
@@ -284,11 +305,8 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         override fun visitVar(ctx: stellaParser.VarContext) {
             val varName = ctx.name.text
             val varType = typeContext.getVarType(varName) ?: throw UndefinedVariable(ctx)
-            if (!isTypesEqual(varType, expectedType)) throw UnexpectedExprType(ctx, expectedType, varType)
+            throwIfNotExpected(ctx, varType)
         }
-
-        override fun visitParenthesisedExpr(ctx: stellaParser.ParenthesisedExprContext): Unit = ctx.expr_.accept(this)
-
 
         override fun visitTuple(ctx: stellaParser.TupleContext) {
             val expectedType = expectedType
@@ -304,6 +322,7 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             if (expectedType !is RecordType) throw UnexpectedRecord(ctx, expectedType)
 
             val declaredFields = ctx.bindings.map { it.name.text }.toSet()
+
             val unexpectedFields = declaredFields - expectedType.fieldsTypes.keys
             if (unexpectedFields.isNotEmpty()) throw UnexpectedRecordFields(ctx, expectedType, unexpectedFields)
 
@@ -321,34 +340,33 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
         override fun visitDotTuple(ctx: stellaParser.DotTupleContext) {
             val fieldType = inferType(ctx)
-            if (!isTypesEqual(fieldType, expectedType)) throw UnexpectedExprType(ctx, expectedType, fieldType)
+            throwIfNotExpected(ctx, fieldType)
         }
 
         override fun visitDotRecord(ctx: stellaParser.DotRecordContext) {
             val fieldType = inferType(ctx)
-            if (!isTypesEqual(fieldType, expectedType)) throw UnexpectedExprType(ctx, expectedType, fieldType)
+            throwIfNotExpected(ctx, fieldType)
         }
 
         override fun visitConstUnit(ctx: stellaParser.ConstUnitContext) {
-            if (!isTypesEqual(UnitType, expectedType)) throw UnexpectedExprType(ctx, expectedType, UnitType)
+            throwIfNotExpected(ctx, UnitType)
         }
 
-
         override fun visitSucc(ctx: stellaParser.SuccContext) {
-            if (!isTypesEqual(NatType, expectedType)) throw UnexpectedExprType(ctx, expectedType, NatType)
-            inferType(ctx)
+            throwIfNotExpected(ctx, NatType)
+            expectType(ctx.n, NatType)
         }
 
         override fun visitConstInt(ctx: stellaParser.ConstIntContext) {
-            if (!isTypesEqual(NatType, expectedType)) throw UnexpectedExprType(ctx, expectedType, NatType)
+            throwIfNotExpected(ctx, NatType)
         }
 
         override fun visitConstFalse(ctx: stellaParser.ConstFalseContext) {
-            if (!isTypesEqual(BoolType, expectedType)) throw UnexpectedExprType(ctx, expectedType, BoolType)
+            throwIfNotExpected(ctx, BoolType)
         }
 
         override fun visitConstTrue(ctx: stellaParser.ConstTrueContext) {
-            if (!isTypesEqual(BoolType, expectedType)) throw UnexpectedExprType(ctx, expectedType, BoolType)
+            throwIfNotExpected(ctx, BoolType)
         }
 
         override fun visitAbstraction(ctx: stellaParser.AbstractionContext) {
@@ -370,7 +388,6 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             typeContext.removeAllVariables(params)
         }
 
-
         override fun visitNatRec(ctx: stellaParser.NatRecContext) {
             expectType(ctx.n, NatType)
             expectType(ctx.initial, expectedType)
@@ -379,14 +396,10 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
         override fun visitApplication(ctx: stellaParser.ApplicationContext) {
             val funType = inferAnyFun(ctx.`fun`)
-            if (!isTypesEqual(funType.retType, expectedType)) throw UnexpectedExprType(
-                ctx,
-                expectedType,
-                funType.retType
-            )
             funType.paramsTypes.zip(ctx.args).forEach { (type, arg) ->
                 expectType(arg, type)
             }
+            throwIfNotExpected(ctx, funType.retType)
         }
 
         override fun visitIf(ctx: stellaParser.IfContext) {
@@ -395,7 +408,6 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             expectType(ctx.elseExpr, expectedType)
         }
 
-
         override fun visitList(ctx: stellaParser.ListContext) {
             val expectedType = expectedType
             if (expectedType !is ListType) throw UnexpectedList(ctx, expectedType)
@@ -403,8 +415,8 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitIsEmpty(ctx: stellaParser.IsEmptyContext) {
-            if (!isTypesEqual(BoolType, expectedType)) throw UnexpectedExprType(ctx, expectedType, BoolType)
             inferAnyList(ctx.list)
+            throwIfNotExpected(ctx, BoolType)
         }
 
         override fun visitHead(ctx: stellaParser.HeadContext) {
@@ -420,8 +432,8 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitIsZero(ctx: stellaParser.IsZeroContext) {
-            if (!isTypesEqual(BoolType, expectedType)) throw UnexpectedExprType(ctx, expectedType, BoolType)
             expectType(ctx.n, NatType)
+            throwIfNotExpected(ctx, BoolType)
         }
 
         override fun visitBinding(ctx: stellaParser.BindingContext) {
@@ -429,6 +441,10 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitTerminatingSemicolon(ctx: stellaParser.TerminatingSemicolonContext) {
+            ctx.expr_.accept(this)
+        }
+
+        override fun visitParenthesisedExpr(ctx: stellaParser.ParenthesisedExprContext): Unit{
             ctx.expr_.accept(this)
         }
 

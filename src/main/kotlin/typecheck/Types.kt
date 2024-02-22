@@ -21,7 +21,7 @@ data class TupleType(val fieldsTypes: List<Type>) : Type {
 
 }
 
-data class RecordType(val fieldsTypes: Map<String, Type>) : Type {
+data class RecordType(val fieldsTypes: Map<String, Type>) : Type { // TODO need to remove map because we need preserve order of fields
     override fun toString(): String = "{${fieldsTypes.entries.joinToString(", ") { "${it.key} : ${it.value}" }}}"
 
 }
