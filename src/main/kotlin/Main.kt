@@ -20,7 +20,6 @@ fun main() {
     try {
         checkTypes(program)
     } catch (e: TypeCheckException) {
-        System.err.println("Got type check error:")
         println(e)
         exitProcess(2)
     }

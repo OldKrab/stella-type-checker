@@ -51,10 +51,11 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
     override fun visitStart_Program(ctx: stellaParser.Start_ProgramContext): Unit = ctx.program().accept(this)
 
     override fun visitProgram(ctx: stellaParser.ProgramContext) {
+        ctx.decls.forEach { it.accept(this) }
+
         val isMainContains = ctx.decls.filterIsInstance<stellaParser.DeclFunContext>().any { it.name.text == "main" }
         if (!isMainContains)
             throw MainMissing()
-        ctx.decls.forEach { it.accept(this) }
     }
 
     override fun visitDeclFun(ctx: stellaParser.DeclFunContext) {
@@ -174,7 +175,7 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             val tupleType = ctx.expr_.accept(this)
             if (tupleType !is TupleType) throw NotTuple(ctx.expr_, tupleType)
             val idx = ctx.index.text.toInt()
-            if (idx <= 0 || idx > tupleType.fieldsTypes.size) throw TupleIndexOOB(ctx, tupleType.fieldsTypes.size, idx)
+            if (idx <= 0 || idx > tupleType.fieldsTypes.size) throw TupleIndexOOB(ctx, tupleType, idx)
             return tupleType.fieldsTypes[idx - 1]
         }
 
@@ -300,10 +301,10 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
             val declaredFields = ctx.bindings.map { it.name.text }.toSet()
             val unexpectedFields = declaredFields - expectedType.fieldsTypes.keys
-            if (unexpectedFields.isNotEmpty()) throw UnexpectedRecordFields(ctx, unexpectedFields)
+            if (unexpectedFields.isNotEmpty()) throw UnexpectedRecordFields(ctx, expectedType, unexpectedFields)
 
             val missingFields = expectedType.fieldsTypes.keys - declaredFields
-            if (missingFields.isNotEmpty()) throw MissingRecordFields(ctx, unexpectedFields)
+            if (missingFields.isNotEmpty()) throw MissingRecordFields(ctx, expectedType, missingFields)
 
             for ((expectedFieldType, fieldExpr) in expectedType.fieldsTypes.values.zip(ctx.bindings))
                 expectType(fieldExpr, expectedFieldType)
@@ -351,7 +352,7 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             if (expectedType !is FunType) throw UnexpectedLambda(ctx, expectedType)
             for ((expectedParamType, decl) in expectedType.paramsTypes.zip(ctx.paramDecls)) {
                 val declType = convertType(decl.paramType)
-                if (declType != expectedParamType) throw UnexpectedParamType(decl, expectedParamType)
+                if (declType != expectedParamType) throw UnexpectedParamType(decl, expectedParamType, declType)
             }
 
             val params = declareAll(ctx.paramDecls)
