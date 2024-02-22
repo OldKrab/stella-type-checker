@@ -236,7 +236,7 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
         override fun visitList(ctx: stellaParser.ListContext): Type {
             if (ctx.exprs.size == 0)
-                TODO("Ambiguous list")
+                throw AmbiguousList(ctx)
             val firstType = inferType(ctx.exprs[0])
             for(otherExpr in ctx.exprs.asSequence().drop(1))
                 expectType(otherExpr, firstType)

@@ -144,4 +144,9 @@ class TypeCheckerTest {
     fun ERROR_UNEXPECTED_TYPE_FOR_PARAMETER() {
         runBadTests<UnexpectedParamType>("ERROR_UNEXPECTED_TYPE_FOR_PARAMETER")
     }
+
+    @Test
+    fun ERROR_AMBIGUOUS_LIST() {
+        runBadTests<AmbiguousList>("ERROR_AMBIGUOUS_LIST")
+    }
 }

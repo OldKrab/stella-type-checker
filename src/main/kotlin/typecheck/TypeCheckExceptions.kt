@@ -55,3 +55,5 @@ class TupleIndexOOB(val expr: ParserRuleContext, val actualSize: Int, val access
 
 class UnexpectedTupleLength(val expr: ParserRuleContext, val actualSize: Int, val expectedLength: Int) :
     ExprException(expr)
+
+class AmbiguousList(val expr: ParserRuleContext) : ExprException(expr)
