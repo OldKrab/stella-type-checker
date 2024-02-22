@@ -16,13 +16,13 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         return typeExpectVisitor.expectType(expr, expectedType)
     }
 
-    fun expectAnyFun(expr: ParserRuleContext): FunType {
+    fun inferAnyFun(expr: ParserRuleContext): FunType {
         val funType = inferType(expr)
         if (funType !is FunType) throw NotFunctionApplication(expr, funType)
         return funType
     }
 
-    private fun expectAnyList(list: stellaParser.ExprContext): ListType {
+    private fun inferAnyList(list: stellaParser.ExprContext): ListType {
         val exprType = inferType(list)
         if (exprType !is ListType) throw NotList(list, exprType)
         return exprType
@@ -48,13 +48,7 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         typeContext.removeAllVariables(vars)
     }
 
-    companion object {
-        val libraryFunctionsTypes = mapOf(
-            "Nat::add" to FunType(listOf(NatType), FunType(listOf(NatType), NatType))
-        )
-    }
-
-    override fun visitStart_Program(ctx: stellaParser.Start_ProgramContext) = ctx.program().accept(this)
+    override fun visitStart_Program(ctx: stellaParser.Start_ProgramContext): Unit = ctx.program().accept(this)
 
     override fun visitProgram(ctx: stellaParser.ProgramContext) {
         val isMainContains = ctx.decls.filterIsInstance<stellaParser.DeclFunContext>().any { it.name.text == "main" }
@@ -74,13 +68,10 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
     }
 
     override fun defaultResult() {
-        TODO()
+        throw NotImplementedError()
     }
 
     inner class TypeConverterVisitor : stellaParserBaseVisitor<Type>() {
-        override fun defaultResult(): Type {
-            TODO()
-        }
 
         override fun visitTypeNat(ctx: stellaParser.TypeNatContext?): Type = NatType
 
@@ -114,15 +105,13 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             return ListType(elemType)
         }
 
+        override fun defaultResult(): Type {
+            throw NotImplementedError()
+        }
 
     }
 
     inner class VariablesDeclarator : stellaParserBaseVisitor<String>() {
-
-
-        override fun defaultResult(): String {
-            TODO()
-        }
 
         override fun visitDeclFun(ctx: stellaParser.DeclFunContext): String {
             val funName = ctx.name.text
@@ -146,21 +135,16 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             typeContext.addVariable(varName, inferType(ctx.rhs))
             return varName
         }
+
+        override fun defaultResult(): String {
+            throw NotImplementedError()
+        }
     }
 
     inner class TypeInfererVisitor : stellaParserBaseVisitor<Type>() {
 
-
-        override fun defaultResult(): Type {
-            TODO()
-        }
-
         override fun visitVar(ctx: stellaParser.VarContext): Type {
             val varName = ctx.name.text
-
-            val libFunType = libraryFunctionsTypes[varName]
-            if (libFunType != null)
-                return libFunType
 
             val varType = typeContext.getVarType(varName) ?: throw UndefinedVariable(ctx)
             return varType
@@ -181,9 +165,8 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitTypeAsc(ctx: stellaParser.TypeAscContext): Type {
-            val exprType = ctx.expr_.accept(this)
             val asType = convertType(ctx.type_)
-            if (!isTypesEqual(exprType, asType)) throw UnexpectedExprType(ctx, exprType, asType)
+            expectType(ctx.expr_, asType)
             return asType
         }
 
@@ -191,7 +174,7 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             val tupleType = ctx.expr_.accept(this)
             if (tupleType !is TupleType) throw NotTuple(ctx.expr_, tupleType)
             val idx = ctx.index.text.toInt()
-            if (idx <= 0 || idx > tupleType.fieldsTypes.size) throw TupleIndexOOB(ctx,  tupleType.fieldsTypes.size, idx)
+            if (idx <= 0 || idx > tupleType.fieldsTypes.size) throw TupleIndexOOB(ctx, tupleType.fieldsTypes.size, idx)
             return tupleType.fieldsTypes[idx - 1]
         }
 
@@ -204,12 +187,6 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitConstUnit(ctx: stellaParser.ConstUnitContext?): Type = UnitType
-
-        override fun visitEqual(ctx: stellaParser.EqualContext): Type {
-            val lhsType = ctx.left.accept(this)
-            expectType(ctx.right, lhsType)
-            return BoolType
-        }
 
         override fun visitSucc(ctx: stellaParser.SuccContext): Type {
             expectType(ctx.n, NatType)
@@ -236,16 +213,14 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitNatRec(ctx: stellaParser.NatRecContext): Type {
-            val nType = ctx.n.accept(this)
+            expectType(ctx.n, NatType)
             val initialType = ctx.initial.accept(this)
-            val stepType = ctx.step.accept(this)
-            if (!isTypesEqual(nType, NatType)) TODO()
-            if (!isTypesEqual(stepType, FunType(listOf(NatType), FunType(listOf(initialType), initialType)))) TODO()
+            expectType(ctx.step, FunType(listOf(NatType), FunType(listOf(initialType), initialType)))
             return initialType
         }
 
         override fun visitApplication(ctx: stellaParser.ApplicationContext): Type {
-            val funType = expectAnyFun(ctx.`fun`)
+            val funType = inferAnyFun(ctx.`fun`)
             ctx.args.zip(funType.paramsTypes)
                 .map { (argExpr, paramType) -> typeExpectVisitor.expectType(argExpr, paramType) }
             return funType.retType
@@ -254,28 +229,35 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         override fun visitIf(ctx: stellaParser.IfContext): Type {
             expectType(ctx.condition, BoolType)
             val thenType = ctx.thenExpr.accept(this)
-            val elseType = ctx.elseExpr.accept(this)
-            if (!isTypesEqual(thenType, elseType)) TODO()
+            expectType(ctx.elseExpr, thenType)
             return thenType
         }
 
 
         override fun visitList(ctx: stellaParser.ListContext): Type {
-            TODO("Ambiguous list")
+            if (ctx.exprs.size == 0)
+                TODO("Ambiguous list")
+            val firstType = inferType(ctx.exprs[0])
+            for(otherExpr in ctx.exprs.asSequence().drop(1))
+                expectType(otherExpr, firstType)
+            return ListType(firstType)
         }
 
         override fun visitIsEmpty(ctx: stellaParser.IsEmptyContext): Type {
-            expectAnyList(ctx.list)
+            inferAnyList(ctx.list)
             return BoolType
         }
 
         override fun visitHead(ctx: stellaParser.HeadContext): Type {
-            return expectAnyList(ctx.list).elementsType
+            return inferAnyList(ctx.list).elementsType
         }
 
-        override fun visitTail(ctx: stellaParser.TailContext): Type = expectAnyList(ctx.list)
+        override fun visitTail(ctx: stellaParser.TailContext): Type = inferAnyList(ctx.list)
 
-        override fun visitBinding(ctx: stellaParser.BindingContext): Type = inferType(ctx.rhs)
+        override fun defaultResult(): Type {
+            throw NotImplementedError()
+        }
+
     }
 
     inner class TypeExpectVisitor : stellaParserBaseVisitor<Unit>() {
@@ -294,17 +276,8 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             return expectedType
         }
 
-        override fun defaultResult() {
-            TODO()
-        }
-
-
-
         override fun visitVar(ctx: stellaParser.VarContext) {
             val varName = ctx.name.text
-            val libFunType = libraryFunctionsTypes[varName]
-            if (libFunType != null && !isTypesEqual(libFunType, expectedType))
-                TODO()
             val varType = typeContext.getVarType(varName) ?: throw UndefinedVariable(ctx)
             if (!isTypesEqual(varType, expectedType)) throw UnexpectedExprType(ctx, expectedType, varType)
         }
@@ -338,28 +311,23 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
         override fun visitTypeAsc(ctx: stellaParser.TypeAscContext) {
             val asType = convertType(ctx.type_)
-            if (!isTypesEqual(asType, expectedType)) TODO()
-            inferType(ctx)
+            expectType(ctx.expr_, asType)
         }
 
         override fun visitDotTuple(ctx: stellaParser.DotTupleContext) {
             val fieldType = inferType(ctx)
-            if (!isTypesEqual(fieldType, expectedType)) TODO()
+            if (!isTypesEqual(fieldType, expectedType)) throw UnexpectedExprType(ctx, expectedType, fieldType)
         }
 
         override fun visitDotRecord(ctx: stellaParser.DotRecordContext) {
             val fieldType = inferType(ctx)
-            if (!isTypesEqual(fieldType, expectedType)) TODO()
+            if (!isTypesEqual(fieldType, expectedType)) throw UnexpectedExprType(ctx, expectedType, fieldType)
         }
 
         override fun visitConstUnit(ctx: stellaParser.ConstUnitContext) {
             if (!isTypesEqual(UnitType, expectedType)) throw UnexpectedExprType(ctx, expectedType, UnitType)
         }
 
-        override fun visitEqual(ctx: stellaParser.EqualContext) {
-            if (!isTypesEqual(BoolType, expectedType)) TODO()
-            inferType(ctx)
-        }
 
         override fun visitSucc(ctx: stellaParser.SuccContext) {
             if (!isTypesEqual(NatType, expectedType)) throw UnexpectedExprType(ctx, expectedType, NatType)
@@ -405,8 +373,12 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitApplication(ctx: stellaParser.ApplicationContext) {
-            val funType = expectAnyFun(ctx.`fun`)
-            if (funType.retType != expectedType) TODO()
+            val funType = inferAnyFun(ctx.`fun`)
+            if (!isTypesEqual(funType.retType, expectedType)) throw UnexpectedExprType(
+                ctx,
+                expectedType,
+                funType.retType
+            )
             funType.paramsTypes.zip(ctx.args).forEach { (type, arg) ->
                 expectType(arg, type)
             }
@@ -426,8 +398,8 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitIsEmpty(ctx: stellaParser.IsEmptyContext) {
-            if (!isTypesEqual(BoolType, expectedType)) TODO()
-            expectAnyList(ctx.list)
+            if (!isTypesEqual(BoolType, expectedType)) throw UnexpectedExprType(ctx, expectedType, BoolType)
+            inferAnyList(ctx.list)
         }
 
         override fun visitHead(ctx: stellaParser.HeadContext) {
@@ -435,17 +407,24 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitTail(ctx: stellaParser.TailContext) {
-            if (expectedType !is ListType) TODO()
+            if (expectedType !is ListType) {
+                val argType = inferAnyList(ctx.list)
+                throw UnexpectedExprType(ctx, expectedType, argType)
+            }
             expectType(ctx.list, expectedType)
         }
 
         override fun visitIsZero(ctx: stellaParser.IsZeroContext) {
-            if (!isTypesEqual(BoolType, expectedType)) TODO()
+            if (!isTypesEqual(BoolType, expectedType)) throw UnexpectedExprType(ctx, expectedType, BoolType)
             expectType(ctx.n, NatType)
         }
 
         override fun visitBinding(ctx: stellaParser.BindingContext) {
             expectType(ctx.rhs, expectedType)
+        }
+
+        override fun defaultResult() {
+            throw NotImplementedError()
         }
     }
 
