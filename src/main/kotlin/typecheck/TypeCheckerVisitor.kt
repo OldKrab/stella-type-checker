@@ -239,7 +239,7 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
             if (ctx.exprs.size == 0)
                 throw AmbiguousList(ctx)
             val firstType = inferType(ctx.exprs[0])
-            for(otherExpr in ctx.exprs.asSequence().drop(1))
+            for (otherExpr in ctx.exprs.asSequence().drop(1))
                 expectType(otherExpr, firstType)
             return ListType(firstType)
         }
@@ -254,6 +254,10 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
         }
 
         override fun visitTail(ctx: stellaParser.TailContext): Type = inferAnyList(ctx.list)
+
+        override fun visitTerminatingSemicolon(ctx: stellaParser.TerminatingSemicolonContext): Type {
+           return ctx.expr_.accept(this)
+        }
 
         override fun defaultResult(): Type {
             throw NotImplementedError()
@@ -422,6 +426,10 @@ class TypeCheckerVisitor : stellaParserBaseVisitor<Unit>() {
 
         override fun visitBinding(ctx: stellaParser.BindingContext) {
             expectType(ctx.rhs, expectedType)
+        }
+
+        override fun visitTerminatingSemicolon(ctx: stellaParser.TerminatingSemicolonContext) {
+            ctx.expr_.accept(this)
         }
 
         override fun defaultResult() {
