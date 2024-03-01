@@ -10,78 +10,21 @@ import org.old.grammar.stellaParser
  */
 class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
     private val typeContext = TypeContext()
-    private val typeInfererVisitor = TypeInfererVisitor()
-    private val typeExpectVisitor = TypeExpectVisitor()
-    private val typeConverterVisitor = TypeConverterVisitor()
-    private val variablesDeclarator = VariablesDeclarator()
-
-    fun expectType(expr: ParseTree, expectedType: Type): Type {
-        return typeExpectVisitor.expectType(expr, expectedType)
-    }
-
-    fun inferAnyFun(expr: ParserRuleContext): FunType {
-        val funType = inferType(expr)
-        if (funType !is FunType) throw NotFunctionApplication(expr, funType)
-        return funType
-    }
-
-    private fun inferAnyList(list: stellaParser.ExprContext): ListType {
-        val exprType = inferType(list)
-        if (exprType !is ListType) throw NotList(list, exprType)
-        return exprType
-    }
-
-    fun inferType(expr: ParseTree): Type {
-        return expr.accept(typeInfererVisitor)
-    }
-
-    fun convertType(expr: ParseTree): Type {
-        return expr.accept(typeConverterVisitor)
-    }
-
-    fun declare(ctx: ParseTree): String {
-        return ctx.accept(variablesDeclarator)
-    }
-
-    fun declareAll(trees: Iterable<ParseTree>): List<String> {
-        return trees.map { declare(it) }
-    }
-
-    fun forgetAll(vars: Iterable<String>) {
-        typeContext.removeAllVariables(vars)
-    }
-
-    override fun visitStart_Program(ctx: stellaParser.Start_ProgramContext): Unit = ctx.program().accept(this)
-
-    override fun visitProgram(ctx: stellaParser.ProgramContext) {
-        ctx.decls.forEach { it.accept(this) }
-
-        val isMainContains = ctx.decls.filterIsInstance<stellaParser.DeclFunContext>().any { it.name.text == "main" }
-        if (!isMainContains) throw MainMissing()
-    }
-
-    override fun visitDeclFun(ctx: stellaParser.DeclFunContext) {
-        declare(ctx)
-        val vars = declareAll(ctx.paramDecls) + declareAll(ctx.localDecls)
-
-        val declReturnType = convertType(ctx.returnType)
-        expectType(ctx.returnExpr, declReturnType)
-
-        forgetAll(vars)
-    }
-
 
     /**
      * Walk type nodes and create inner type objects from them
      */
-    inner class TypeConverterVisitor : UnimplementedStellaVisitor<Type>("convert type of") {
+    private val typeConverterVisitor = object : UnimplementedStellaVisitor<Type>("convert type of") {
+
+        override fun visitTypeParens(ctx: stellaParser.TypeParensContext): Type {
+            return ctx.type_.accept(this)
+        }
 
         override fun visitTypeNat(ctx: stellaParser.TypeNatContext): Type = NatType
 
         override fun visitTypeUnit(ctx: stellaParser.TypeUnitContext): Type = UnitType
 
         override fun visitTypeBool(ctx: stellaParser.TypeBoolContext): Type = BoolType
-
 
         override fun visitTypeFun(ctx: stellaParser.TypeFunContext): Type {
             val paramTypes = ctx.paramTypes.map(::convertType)
@@ -104,15 +47,17 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             return ListType(elemType)
         }
 
-        override fun visitTypeParens(ctx: stellaParser.TypeParensContext): Type {
-            return ctx.type_.accept(this)
+
+        override fun visitTypeVariant(ctx: stellaParser.TypeVariantContext): Type {
+            val fieldsTypes = ctx.fieldTypes.associate { Pair(it.label.text, convertType(it.type_)) }
+            return VariantType(fieldsTypes)
         }
     }
 
     /**
      * Walk declaration nodes and add to typeContext declared variable. Return variable name to remove them further
      */
-    inner class VariablesDeclarator : UnimplementedStellaVisitor<String>("declare variable in") {
+    private val variablesDeclarator = object : UnimplementedStellaVisitor<String>("declare variable in") {
 
         override fun visitDeclFun(ctx: stellaParser.DeclFunContext): String {
             val funName = ctx.name.text
@@ -138,11 +83,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
     }
 
-
     /**
      * Walk parse tree and try to infer types of expressions
      */
-    inner class TypeInfererVisitor : UnimplementedStellaVisitor<Type>("infer type of") {
+    private val typeInfererVisitor = object : UnimplementedStellaVisitor<Type>("infer type of") {
 
         override fun visitVar(ctx: stellaParser.VarContext): Type {
             val varName = ctx.name.text
@@ -260,7 +204,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
     /**
      * Walk parse tree and match expected type with actual
      */
-    inner class TypeExpectVisitor : UnimplementedStellaVisitor<Unit>("expect type of") {
+    private val typeExpectVisitor = object : UnimplementedStellaVisitor<Unit>("expect type of") {
         private lateinit var expectedType: Type
 
         private fun throwIfNotExpected(ctx: ParserRuleContext, actualType: Type) {
@@ -429,5 +373,73 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         override fun visitParenthesisedExpr(ctx: stellaParser.ParenthesisedExprContext) {
             ctx.expr_.accept(this)
         }
+
+        override fun visitFix(ctx: stellaParser.FixContext) {
+            expectType(ctx.expr_, FunType(listOf(expectedType), expectedType))
+        }
+
+        override fun visitVariant(ctx: stellaParser.VariantContext) {
+            val expectedType = expectedType
+            if (expectedType !is VariantType) throw UnexpectedVariant(ctx, expectedType)
+            val label = ctx.label.text
+            val variantType = expectedType.variantsTypes[label] ?: throw UnexpectedVariantLabel(ctx, expectedType, label)
+            expectType(ctx.rhs, variantType)
+        }
     }
+
+    fun expectType(expr: ParseTree, expectedType: Type): Type {
+        return typeExpectVisitor.expectType(expr, expectedType)
+    }
+
+    fun inferAnyFun(expr: ParserRuleContext): FunType {
+        val funType = inferType(expr)
+        if (funType !is FunType) throw NotFunctionApplication(expr, funType)
+        return funType
+    }
+
+    private fun inferAnyList(list: stellaParser.ExprContext): ListType {
+        val exprType = inferType(list)
+        if (exprType !is ListType) throw NotList(list, exprType)
+        return exprType
+    }
+
+    fun inferType(expr: ParseTree): Type {
+        return expr.accept(typeInfererVisitor)
+    }
+
+    fun convertType(expr: ParseTree): Type {
+        return expr.accept(typeConverterVisitor)
+    }
+
+    fun declare(ctx: ParseTree): String {
+        return ctx.accept(variablesDeclarator)
+    }
+
+    fun declareAll(trees: Iterable<ParseTree>): List<String> {
+        return trees.map { declare(it) }
+    }
+
+    fun forgetAll(vars: Iterable<String>) {
+        typeContext.removeAllVariables(vars)
+    }
+
+    override fun visitStart_Program(ctx: stellaParser.Start_ProgramContext): Unit = ctx.program().accept(this)
+
+    override fun visitProgram(ctx: stellaParser.ProgramContext) {
+        ctx.decls.forEach { it.accept(this) }
+
+        val isMainContains = ctx.decls.filterIsInstance<stellaParser.DeclFunContext>().any { it.name.text == "main" }
+        if (!isMainContains) throw MainMissing()
+    }
+
+    override fun visitDeclFun(ctx: stellaParser.DeclFunContext) {
+        declare(ctx)
+        val vars = declareAll(ctx.paramDecls) + declareAll(ctx.localDecls)
+
+        val declReturnType = convertType(ctx.returnType)
+        expectType(ctx.returnExpr, declReturnType)
+
+        forgetAll(vars)
+    }
+
 }

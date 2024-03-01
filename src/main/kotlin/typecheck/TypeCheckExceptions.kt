@@ -13,7 +13,7 @@ fun getLineText(tokenStream: CharStream, line: Int): String {
 
 abstract class TypeCheckException : Exception() {
 
-    open fun getDescription(): String = "${this::class.simpleName}"
+    abstract fun getDescription(): String
     abstract fun getTag(): String
     override fun toString(): String {
         return """
@@ -168,5 +168,14 @@ class UnexpectedTupleLength(expr: ParserRuleContext, private val actualLength: I
 class AmbiguousList(expr: ParserRuleContext) : ExprException(expr) {
     override fun getTag(): String = "ERROR_AMBIGUOUS_LIST"
     override fun getDescription(): String = "ambiguous list"
+}
 
+class UnexpectedVariant(expr: ParserRuleContext, val expectedType: Type) : ExprException(expr){
+    override fun getTag(): String = "ERROR_UNEXPECTED_VARIANT"
+    override fun getDescription(): String = "unexpected variant: expected $expectedType but got variant"
+}
+
+class UnexpectedVariantLabel(expr: ParserRuleContext, val expectedType: Type, val actualLabel: String) : ExprException(expr){
+    override fun getTag(): String = "ERROR_UNEXPECTED_VARIANT_LABEL"
+    override fun getDescription(): String = "unexpected variant label: expected type $expectedType not contains label `$actualLabel`"
 }

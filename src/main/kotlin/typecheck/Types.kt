@@ -23,7 +23,6 @@ data class TupleType(val fieldsTypes: List<Type>) : Type {
 
 data class RecordType(val fieldsTypes: Map<String, Type>) : Type { // TODO need to remove map because we need preserve order of fields
     override fun toString(): String = "{${fieldsTypes.entries.joinToString(", ") { "${it.key} : ${it.value}" }}}"
-
 }
 
 data class ListType(val elementsType: Type) : Type {
@@ -33,7 +32,10 @@ data class ListType(val elementsType: Type) : Type {
 
 data class FunType(val paramsTypes: List<Type>, val retType: Type) : Type{
     override fun toString(): String = "fn (${paramsTypes.joinToString(", ")}) -> $retType"
+}
 
+data class VariantType(val variantsTypes: Map<String, Type>) : Type { // TODO we need preserve order of fields
+    override fun toString(): String = "<|${variantsTypes.entries.joinToString(", ") { "${it.key} : ${it.value}" }}|>"
 }
 
 
