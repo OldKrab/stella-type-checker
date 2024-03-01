@@ -43,7 +43,9 @@ class TypeCheckerTest {
     private fun getTests(resourceFolder: String, run: (ParseTree, String) -> Unit): Collection<DynamicTest> {
         return Files.list(getResource(resourceFolder)).map { file ->
             DynamicTest.dynamicTest(file.fileName.toString()) {
-                val (_, errorListener, program) = getParser(file.toFile().readText())
+                val source= file.toFile().readText()
+                println("Source:\n```\n$source\n```")
+                val (_, errorListener, program) = getParser(source)
                 errorListener.getSyntaxErrors().forEach { println(it) }
                 assertEquals(0, errorListener.getSyntaxErrors().size)
                 val testCase = file.fileName.toString()
@@ -157,7 +159,7 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_ILLEGAL_EMPTY_MATCHING(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_ILLEGAL_EMPTY_MATCHING")
+        return getBadTests<IllegalEmptyMatching>("ERROR_ILLEGAL_EMPTY_MATCHING")
     }
 
     @TestFactory
@@ -177,7 +179,7 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_NONEXHAUSTIVE_MATCH_PATTERNS(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_NONEXHAUSTIVE_MATCH_PATTERNS")
+        return getBadTests<NonExhaustiveMatchPatterns>("ERROR_NONEXHAUSTIVE_MATCH_PATTERNS")
     }
 
     @TestFactory
@@ -187,7 +189,7 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_UNEXPECTED_INJECTION(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_UNEXPECTED_INJECTION")
+        return getBadTests<UnexpectedInjection>("ERROR_UNEXPECTED_INJECTION")
     }
 
     @TestFactory
@@ -207,7 +209,7 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_UNEXPECTED_PATTERN_FOR_TYPE(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_UNEXPECTED_PATTERN_FOR_TYPE")
+        return getBadTests<UnexpectedPatternForType>("ERROR_UNEXPECTED_PATTERN_FOR_TYPE")
     }
 
     @TestFactory
@@ -218,5 +220,10 @@ class TypeCheckerTest {
     @TestFactory
     fun ERROR_UNEXPECTED_VARIANT_LABEL(): Collection<DynamicTest> {
         return getBadTests<UnexpectedVariantLabel>("ERROR_UNEXPECTED_VARIANT_LABEL")
+    }
+
+    @TestFactory
+    fun ERROR_AMBIGUOUS_SUM_TYPE(): Collection<DynamicTest> {
+        return getBadTests<AmbiguousSumType>("ERROR_AMBIGUOUS_SUM_TYPE")
     }
 }

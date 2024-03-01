@@ -170,12 +170,40 @@ class AmbiguousList(expr: ParserRuleContext) : ExprException(expr) {
     override fun getDescription(): String = "ambiguous list"
 }
 
-class UnexpectedVariant(expr: ParserRuleContext, val expectedType: Type) : ExprException(expr){
+class AmbiguousSumType(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_AMBIGUOUS_SUM_TYPE"
+    override fun getDescription(): String = "ambiguous sum type"
+}
+
+class UnexpectedVariant(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr){
     override fun getTag(): String = "ERROR_UNEXPECTED_VARIANT"
     override fun getDescription(): String = "unexpected variant: expected $expectedType but got variant"
 }
 
-class UnexpectedVariantLabel(expr: ParserRuleContext, val expectedType: Type, val actualLabel: String) : ExprException(expr){
+class UnexpectedVariantLabel(expr: ParserRuleContext, private val expectedType: Type, private val actualLabel: String) : ExprException(expr){
     override fun getTag(): String = "ERROR_UNEXPECTED_VARIANT_LABEL"
     override fun getDescription(): String = "unexpected variant label: expected type $expectedType not contains label `$actualLabel`"
 }
+
+class UnexpectedInjection(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_INJECTION"
+    override fun getDescription(): String = "unexpected injection: expected $expectedType but got injection"
+}
+
+class IllegalEmptyMatching(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_ILLEGAL_EMPTY_MATCHING"
+    override fun getDescription(): String = "Illegal empty matching"
+}
+
+class NonExhaustiveMatchPatterns(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "NONEXHAUSTIVE_MATCH_PATTERNS"
+    override fun getDescription(): String = "Non exhaustive match patterns"
+}
+
+class UnexpectedPatternForType(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_PATTERN_FOR_TYPE"
+    override fun getDescription(): String = "Unexpected pattern for type $expectedType"
+}
+
+
+
