@@ -1,11 +1,27 @@
 package org.old.grammar
 
 import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor
+import org.old.typecheck.Type
 
- abstract class UnimplementedStellaVisitor<T>(private val action: String) :  AbstractParseTreeVisitor<T>(), stellaParserVisitor<T> {
+abstract class UnimplementedStellaVisitor<T>(private val action: String) : AbstractParseTreeVisitor<T>(),
+    stellaParserVisitor<T> {
+
+
+    override fun visitTerminatingSemicolon(ctx: stellaParser.TerminatingSemicolonContext): T {
+        return ctx.expr_.accept(this)
+    }
+
+    override fun visitParenthesisedExpr(ctx: stellaParser.ParenthesisedExprContext): T {
+        return ctx.expr_.accept(this)
+    }
+
+
+    override fun visitTypeParens(ctx: stellaParser.TypeParensContext): T {
+        return ctx.type_.accept(this)
+    }
 
     override fun visitStart_Program(ctx: stellaParser.Start_ProgramContext): T {
-        TODO("$action Start_Program")
+        return ctx.program().accept(this)
     }
 
     override fun visitStart_Expr(ctx: stellaParser.Start_ExprContext): T {
@@ -68,7 +84,7 @@ import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor
         TODO("$action IsZero")
     }
 
-     override fun visitVar(ctx: stellaParser.VarContext): T {
+    override fun visitVar(ctx: stellaParser.VarContext): T {
         TODO("$action Var")
     }
 
@@ -120,9 +136,6 @@ import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor
         TODO("$action Head")
     }
 
-    override fun visitTerminatingSemicolon(ctx: stellaParser.TerminatingSemicolonContext): T {
-        TODO("$action TerminatingSemicolon")
-    }
 
     override fun visitNotEqual(ctx: stellaParser.NotEqualContext): T {
         TODO("$action NotEqual")
@@ -212,9 +225,6 @@ import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor
         TODO("$action LogicNot")
     }
 
-    override fun visitParenthesisedExpr(ctx: stellaParser.ParenthesisedExprContext): T {
-        TODO("$action ParenthesisedExpr")
-    }
 
     override fun visitTail(ctx: stellaParser.TailContext): T {
         TODO("$action Tail")
@@ -402,10 +412,6 @@ import org.antlr.v4.runtime.tree.AbstractParseTreeVisitor
 
     override fun visitTypeBottom(ctx: stellaParser.TypeBottomContext): T {
         TODO("$action TypeBottom")
-    }
-
-    override fun visitTypeParens(ctx: stellaParser.TypeParensContext): T {
-        TODO("$action TypeParens")
     }
 
     override fun visitTypeFun(ctx: stellaParser.TypeFunContext): T {

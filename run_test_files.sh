@@ -3,7 +3,7 @@
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 tests_dir="$script_dir/src/test/resources/stella-tests"
-app_jar="$script_dir/build/libs/TypesProject-1.0-SNAPSHOT.jar"
+app="$script_dir/build/install/TypesProject/bin/TypesProject"
 
 find "$tests_dir" -type f -name '*.st' | while read -r file; do
     echo "File: $file"
@@ -12,7 +12,7 @@ find "$tests_dir" -type f -name '*.st' | while read -r file; do
     cat "$file"
     printf "\n\`\`\`\n"
     echo "Type check:"
-    java -jar "$app_jar" < "$file"
+    $app < "$file"
     echo "_______________________________________________________________________________________"
     printf "\n"
 done

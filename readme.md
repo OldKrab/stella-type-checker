@@ -1,13 +1,20 @@
 # Сборка
 
 ```bash
-./gradlew build 
+./gradlew installDist 
 ```
+
+После этого в папке `build/install/TypesProject/bin/` будут находиться скрипты для запуска приложения.
 
 # Запуск приложения
 
+Unix:
 ```bash
-java -jar "build/libs/TypesProject-1.0-SNAPSHOT.jar"
+./build/install/TypesProject/bin/TypesProject
+```
+Windows:
+```bash
+./build/install/TypesProject/bin/TypesProject.bat
 ```
 
 # Запуск приложения на тестовых файлах

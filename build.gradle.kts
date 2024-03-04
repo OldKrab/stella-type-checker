@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "1.9.22"
     java
     antlr
+    application
     id("com.adarshr.test-logger") version "4.0.0"
 }
 
@@ -33,18 +34,17 @@ tasks.generateGrammarSource {
     val pkg = "org.old.grammar"
     arguments = arguments + listOf("-package", pkg, "-visitor")
     outputDirectory = outputDirectory.resolve(pkg.split(".").joinToString("/"))
-   }
+}
 
 tasks.withType<KotlinCompile>().configureEach {
     dependsOn(tasks.withType<AntlrTask>())
 }
 
-// Fat JAR
-tasks.jar {
-    manifest {
-        attributes["Main-Class"] = "org.old.MainKt"
-    }
-    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+val mainClassPath = "org.old.MainKt"
+
+application {
+    mainClass = mainClassPath
 }
+
 
 
