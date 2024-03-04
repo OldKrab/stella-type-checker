@@ -210,5 +210,10 @@ class IncorrectArityOfMain(expr: ParserRuleContext) : ExprException(expr) {
     override fun getDescription(): String = "Arity of main should be 1"
 }
 
+class IncorrectNumberOfArguments(expr: ParserRuleContext, private val expectedNumber: Int, private val actualNumber: Int) : ExprException(expr) {
+    override fun getTag(): String = "INCORRECT_ARITY_OF_MAIN"
+    override fun getDescription(): String = "Expected $expectedNumber of arguments, but got $actualNumber"
+}
+
 
 

@@ -48,7 +48,8 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         override fun visitTypeVariant(ctx: stellaParser.TypeVariantContext): Type {
             val fields = ctx.fieldTypes.map { it.label.text }
-            val fieldsTypes = ctx.fieldTypes.associate { field -> Pair(field.label.text, field.type_?.let { convertType(it) }) }
+            val fieldsTypes =
+                ctx.fieldTypes.associate { field -> Pair(field.label.text, field.type_?.let { convertType(it) }) }
             return VariantType(fields, fieldsTypes)
         }
 
@@ -200,6 +201,8 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         override fun visitApplication(ctx: stellaParser.ApplicationContext): Type {
             val funType = inferAnyFun(ctx.`fun`)
             // TODO compare args and params counts
+            if (ctx.args.size != funType.paramsTypes.size)
+                throw IncorrectNumberOfArguments(ctx, funType.paramsTypes.size, ctx.args.size)
             ctx.args.zip(funType.paramsTypes).forEach { (argExpr, paramType) -> expectType(argExpr, paramType) }
             return funType.retType
         }
@@ -229,7 +232,6 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitTail(ctx: stellaParser.TailContext): ListType = inferAnyList(ctx.list)
-
 
 
         override fun visitInl(ctx: stellaParser.InlContext): Type {
@@ -393,10 +395,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             val label = ctx.label.text
             if (!expectedType.variantsTypes.containsKey(label)) throw UnexpectedVariantLabel(ctx, expectedType, label)
             val variantType = expectedType.variantsTypes.getValue(label)
-            if(variantType != null)
+            if (variantType != null)
                 expectType(ctx.rhs, variantType)
             else
-                if(ctx.rhs != null) TODO()
+                if (ctx.rhs != null) TODO()
         }
 
         override fun visitInl(ctx: stellaParser.InlContext) {

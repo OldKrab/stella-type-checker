@@ -27,6 +27,7 @@ class TypeCheckerTest {
                             "Expected '${T::class.simpleName}' but got '${e.javaClass.simpleName}'!", e
                 )
             }
+            println(e)
             return
         }
         fail("Testcase '$testCase' not throws ${T::class.simpleName}!")
@@ -164,12 +165,12 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_INCORRECT_ARITY_OF_MAIN(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_INCORRECT_ARITY_OF_MAIN")
+        return getBadTests<IncorrectArityOfMain>("ERROR_INCORRECT_ARITY_OF_MAIN")
     }
 
     @TestFactory
     fun ERROR_INCORRECT_NUMBER_OF_ARGUMENTS(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_INCORRECT_NUMBER_OF_ARGUMENTS")
+        return getBadTests<IncorrectNumberOfArguments>("ERROR_INCORRECT_NUMBER_OF_ARGUMENTS")
     }
 
     @TestFactory
