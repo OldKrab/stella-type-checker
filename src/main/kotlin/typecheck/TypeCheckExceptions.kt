@@ -196,7 +196,7 @@ class IllegalEmptyMatching(expr: ParserRuleContext) : ExprException(expr) {
 }
 
 class NonExhaustiveMatchPatterns(expr: ParserRuleContext) : ExprException(expr) {
-    override fun getTag(): String = "NONEXHAUSTIVE_MATCH_PATTERNS"
+    override fun getTag(): String = "ERROR_NONEXHAUSTIVE_MATCH_PATTERNS"
     override fun getDescription(): String = "Non exhaustive match patterns"
 }
 

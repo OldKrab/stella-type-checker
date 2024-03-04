@@ -21,7 +21,7 @@ data class TupleType(val fieldsTypes: List<Type>) : Type {
 
 }
 
-data class RecordType(val fields: List<String>, val fieldsTypes: Map<String, Type>) : Type {
+data class RecordType(val labels: List<String>, val fieldsTypes: Map<String, Type>) : Type {
 
     override fun toString(): String = "{${fieldsTypes.entries.joinToString(", ") { "${it.key} : ${it.value}" }}}"
 }

@@ -5,6 +5,13 @@ import org.antlr.v4.runtime.tree.ParseTree
 import org.old.grammar.ParametrizedVisitor
 import org.old.grammar.UnimplementedStellaVisitor
 import org.old.grammar.stellaParser
+import org.old.grammar.stellaParser.MatchContext
+import org.old.grammar.stellaParser.PatternConsContext
+import org.old.grammar.stellaParser.PatternContext
+import org.old.grammar.stellaParser.PatternTrueContext
+import org.old.grammar.stellaParser.PatternFalseContext
+import org.old.grammar.stellaParser.PatternListContext
+import org.old.grammar.stellaParser.PatternVarContext
 
 /***
  * Main class for type checking. Walk parse tree with context and infer or check expected types
@@ -81,11 +88,12 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         override fun visitPatternBinding(ctx: stellaParser.PatternBindingContext): String {
             val pat = ctx.pat
-            val varName = if (pat is stellaParser.PatternVarContext) pat.name.text else TODO()
+            val varName = if (pat is PatternVarContext) pat.name.text else TODO()
             typeContext.addVariable(varName, inferType(ctx.rhs))
             return varName
         }
     }
+
 
     /**
      * Walk pattern and add to typeContext declared variable. Return variables names to remove them further
@@ -122,6 +130,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 return declarePattern(ctx.pattern_, expectedVariantType)
             }
         }
+
 
     /**
      * Walk parse tree and try to infer types of expressions
@@ -200,7 +209,6 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         override fun visitApplication(ctx: stellaParser.ApplicationContext): Type {
             val funType = inferAnyFun(ctx.`fun`)
-            // TODO compare args and params counts
             if (ctx.args.size != funType.paramsTypes.size)
                 throw IncorrectNumberOfArguments(ctx, funType.paramsTypes.size, ctx.args.size)
             ctx.args.zip(funType.paramsTypes).forEach { (argExpr, paramType) -> expectType(argExpr, paramType) }
@@ -242,6 +250,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             throw AmbiguousSumType(ctx)
         }
     }
+
 
     /**
      * Walk parse tree and match expected type with actual
@@ -410,9 +419,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             if (expectedType !is SumType) throw UnexpectedInjection(ctx, expectedType)
         }
 
-        override fun visitMatch(ctx: stellaParser.MatchContext) {
+        override fun visitMatch(ctx: MatchContext) {
             if (ctx.cases.size == 0) throw IllegalEmptyMatching(ctx)
             val exprType = inferType(ctx.expr_)
+            checkExhaustivePatterns(ctx, exprType, ctx.cases.map { it.pattern_ })
             for (case in ctx.cases) {
                 val vars = declarePattern(case.pattern_, exprType)
                 expectType(case.expr_, expectedType)
