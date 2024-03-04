@@ -395,6 +395,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             val label = ctx.label.text
             if (!expectedType.variantsTypes.containsKey(label)) throw UnexpectedVariantLabel(ctx, expectedType, label)
             val variantType = expectedType.variantsTypes.getValue(label)
+            if (ctx.rhs == null && variantType != null) throw MissingDataForLabel(ctx, expectedType, variantType, label)
             if (variantType != null)
                 expectType(ctx.rhs, variantType)
             else

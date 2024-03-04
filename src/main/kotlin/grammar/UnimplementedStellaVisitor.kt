@@ -28,6 +28,10 @@ abstract class UnimplementedStellaVisitor<T>(private val action: String) : Abstr
         TODO("$action Start_Expr")
     }
 
+    override fun visitPatternAsc(ctx: stellaParser.PatternAscContext?): T {
+        TODO("$action PatternAsc")
+    }
+
     override fun visitStart_Type(ctx: stellaParser.Start_TypeContext): T {
         TODO("$action Start_Type")
     }

@@ -206,14 +206,18 @@ class UnexpectedPatternForType(expr: ParserRuleContext, private val expectedType
 }
 
 class IncorrectArityOfMain(expr: ParserRuleContext) : ExprException(expr) {
-    override fun getTag(): String = "INCORRECT_ARITY_OF_MAIN"
+    override fun getTag(): String = "ERROR_INCORRECT_ARITY_OF_MAIN"
     override fun getDescription(): String = "Arity of main should be 1"
 }
 
 class IncorrectNumberOfArguments(expr: ParserRuleContext, private val expectedNumber: Int, private val actualNumber: Int) : ExprException(expr) {
-    override fun getTag(): String = "INCORRECT_ARITY_OF_MAIN"
+    override fun getTag(): String = "ERROR_INCORRECT_NUMBER_OF_ARGUMENTS"
     override fun getDescription(): String = "Expected $expectedNumber of arguments, but got $actualNumber"
 }
 
+class MissingDataForLabel(expr: ParserRuleContext, private val recordType: Type, private val expectedLabelType: Type, private val label: String) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_MISSING_DATA_FOR_LABEL"
+    override fun getDescription(): String = "Label '$label' in record $recordType expect data of type $expectedLabelType, but data missing"
+}
 
 

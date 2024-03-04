@@ -17,7 +17,7 @@ class TypeCheckerTest {
         return Path.of(TypeCheckerVisitor::class.java.getResource(resourceFolder)!!.toURI())
     }
 
-    private inline fun <reified T : TypeCheckException> runBadTest(program: ParseTree, testCase: String) {
+    private inline fun <reified T : TypeCheckException> runBadTest(program: ParseTree, testCase: String, tag: String) {
         try {
             checkTypes(program)
         } catch (e: Throwable) {
@@ -28,6 +28,9 @@ class TypeCheckerTest {
                 )
             }
             println(e)
+            if (!e.toString().contains(tag)) {
+                fail("Testcase '$testCase' throws expected exception, but tag $tag not present in output!", e)
+            }
             return
         }
         fail("Testcase '$testCase' not throws ${T::class.simpleName}!")
@@ -44,7 +47,7 @@ class TypeCheckerTest {
     private fun getTests(resourceFolder: String, run: (ParseTree, String) -> Unit): Collection<DynamicTest> {
         return Files.list(getResource(resourceFolder)).map { file ->
             DynamicTest.dynamicTest(file.fileName.toString()) {
-                val source= file.toFile().readText()
+                val source = file.toFile().readText()
                 println("Source:\n```\n$source\n```")
                 val (_, errorListener, program) = getParser(source)
                 errorListener.getSyntaxErrors().forEach { println(it) }
@@ -55,9 +58,9 @@ class TypeCheckerTest {
         }.toList()
     }
 
-    private inline fun <reified T : TypeCheckException> getBadTests(testFolder: String): Collection<DynamicTest> {
-        return getTests("/stella-tests/bad/$testFolder") { program, testCase ->
-            runBadTest<T>(program, testCase)
+    private inline fun <reified T : TypeCheckException> getBadTests(errorTag: String): Collection<DynamicTest> {
+        return getTests("/stella-tests/bad/$errorTag") { program, testCase ->
+            runBadTest<T>(program, testCase, errorTag)
         }
     }
 
@@ -175,7 +178,7 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_MISSING_DATA_FOR_LABEL(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_MISSING_DATA_FOR_LABEL")
+        return getBadTests<MissingDataForLabel>("ERROR_MISSING_DATA_FOR_LABEL")
     }
 
     @TestFactory
