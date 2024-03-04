@@ -48,7 +48,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         override fun visitTypeVariant(ctx: stellaParser.TypeVariantContext): Type {
             val fields = ctx.fieldTypes.map { it.label.text }
-            val fieldsTypes = ctx.fieldTypes.associate { Pair(it.label.text, it.type_?.let { convertType(it) }) }
+            val fieldsTypes = ctx.fieldTypes.associate { field -> Pair(field.label.text, field.type_?.let { convertType(it) }) }
             return VariantType(fields, fieldsTypes)
         }
 
@@ -466,8 +466,9 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
     override fun visitProgram(ctx: stellaParser.ProgramContext) {
         ctx.decls.forEach { it.accept(this) }
 
-        val isMainContains = ctx.decls.filterIsInstance<stellaParser.DeclFunContext>().any { it.name.text == "main" }
-        if (!isMainContains) throw MainMissing()
+        val main = ctx.decls.filterIsInstance<stellaParser.DeclFunContext>().firstOrNull { it.name.text == "main" }
+        if (main == null) throw MainMissing()
+        if (main.paramDecls.size != 1) throw IncorrectArityOfMain(main)
     }
 
     override fun visitDeclFun(ctx: stellaParser.DeclFunContext) {

@@ -205,5 +205,10 @@ class UnexpectedPatternForType(expr: ParserRuleContext, private val expectedType
     override fun getDescription(): String = "Unexpected pattern for type $expectedType"
 }
 
+class IncorrectArityOfMain(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "INCORRECT_ARITY_OF_MAIN"
+    override fun getDescription(): String = "Arity of main should be 1"
+}
+
 
 
