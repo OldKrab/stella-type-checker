@@ -68,6 +68,35 @@ class TypeCheckerTest {
     fun OkTests(): Collection<DynamicTest> {
         return getTests("/stella-tests/ok", ::runOkTest)
     }
+    @TestFactory
+    fun ERROR_AMBIGUOUS_LIST(): Collection<DynamicTest> {
+        return getBadTests<AmbiguousList>("ERROR_AMBIGUOUS_LIST")
+    }
+
+    @TestFactory
+    fun ERROR_AMBIGUOUS_SUM_TYPE(): Collection<DynamicTest> {
+        return getBadTests<AmbiguousSumType>("ERROR_AMBIGUOUS_SUM_TYPE")
+    }
+
+    @TestFactory
+    fun ERROR_ILLEGAL_EMPTY_MATCHING(): Collection<DynamicTest> {
+        return getBadTests<IllegalEmptyMatching>("ERROR_ILLEGAL_EMPTY_MATCHING")
+    }
+
+    @TestFactory
+    fun ERROR_INCORRECT_ARITY_OF_MAIN(): Collection<DynamicTest> {
+        return getBadTests<IncorrectArityOfMain>("ERROR_INCORRECT_ARITY_OF_MAIN")
+    }
+
+    @TestFactory
+    fun ERROR_INCORRECT_NUMBER_OF_ARGUMENTS(): Collection<DynamicTest> {
+        return getBadTests<IncorrectNumberOfArguments>("ERROR_INCORRECT_NUMBER_OF_ARGUMENTS")
+    }
+
+    @TestFactory
+    fun ERROR_MISSING_DATA_FOR_LABEL(): Collection<DynamicTest> {
+        return getBadTests<MissingDataForLabel>("ERROR_MISSING_DATA_FOR_LABEL")
+    }
 
 
     @TestFactory
@@ -80,46 +109,79 @@ class TypeCheckerTest {
         return getBadTests<MissingRecordFields>("ERROR_MISSING_RECORD_FIELDS")
     }
 
+
+    @TestFactory
+    fun ERROR_NONEXHAUSTIVE_MATCH_PATTERNS(): Collection<DynamicTest> {
+        return getBadTests<NonExhaustiveMatchPatterns>("ERROR_NONEXHAUSTIVE_MATCH_PATTERNS")
+    }
+
     @TestFactory
     fun ERROR_NOT_A_FUNCTION(): Collection<DynamicTest> {
         return getBadTests<NotFunctionApplication>("ERROR_NOT_A_FUNCTION")
     }
-
-    @TestFactory
-    fun ERROR_NOT_A_RECORD(): Collection<DynamicTest> {
-        return getBadTests<NotRecord>("ERROR_NOT_A_RECORD")
-    }
-
-    @TestFactory
-    fun ERROR_NOT_A_TUPLE(): Collection<DynamicTest> {
-        return getBadTests<NotTuple>("ERROR_NOT_A_TUPLE")
-    }
-
-
     @TestFactory
     fun ERROR_NOT_A_LIST(): Collection<DynamicTest> {
         return getBadTests<NotList>("ERROR_NOT_A_LIST")
     }
 
     @TestFactory
+    fun ERROR_NOT_A_RECORD(): Collection<DynamicTest> {
+        return getBadTests<NotRecord>("ERROR_NOT_A_RECORD")
+    }
+    @TestFactory
+    fun ERROR_NOT_A_TUPLE(): Collection<DynamicTest> {
+        return getBadTests<NotTuple>("ERROR_NOT_A_TUPLE")
+    }
+    @TestFactory
     fun ERROR_TUPLE_INDEX_OUT_OF_BOUNDS(): Collection<DynamicTest> {
         return getBadTests<TupleIndexOOB>("ERROR_TUPLE_INDEX_OUT_OF_BOUNDS")
     }
-
+    @TestFactory
+    fun ERROR_UNDEFINED_VARIABLE(): Collection<DynamicTest> {
+        return getBadTests<UndefinedVariable>("ERROR_UNDEFINED_VARIABLE")
+    }
+    @TestFactory
+    fun ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL(): Collection<DynamicTest> {
+        return getBadTests<UnexpectedDataForNullaryLabel>("ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL")
+    }
     @TestFactory
     fun ERROR_UNEXPECTED_FIELD_ACCESS(): Collection<DynamicTest> {
         return getBadTests<UnexpectedFieldAccess>("ERROR_UNEXPECTED_FIELD_ACCESS")
     }
-
     @TestFactory
-    fun ERROR_UNEXPECTED_LIST(): Collection<DynamicTest> {
-        return getBadTests<UnexpectedList>("ERROR_UNEXPECTED_LIST")
+    fun ERROR_UNEXPECTED_INJECTION(): Collection<DynamicTest> {
+        return getBadTests<UnexpectedInjection>("ERROR_UNEXPECTED_INJECTION")
     }
 
     @TestFactory
     fun ERROR_UNEXPECTED_LAMBDA(): Collection<DynamicTest> {
         return getBadTests<UnexpectedLambda>("ERROR_UNEXPECTED_LAMBDA")
     }
+
+    @TestFactory
+    fun ERROR_UNEXPECTED_LIST(): Collection<DynamicTest> {
+        return getBadTests<UnexpectedList>("ERROR_UNEXPECTED_LIST")
+    }
+    @TestFactory
+    fun ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN(): Collection<DynamicTest> {
+        return getBadTests<UnexpectedNonNullaryVariantPattern>("ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN")
+    }
+
+    @TestFactory
+    fun ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN(): Collection<DynamicTest> {
+        return getBadTests<UnexpectedNullaryVariantPattern>("ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN")
+    }
+
+    @TestFactory
+    fun ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA(): Collection<DynamicTest> {
+        return getBadTests<UnexpectedNumberOfLambdaParameters>("ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA")
+    }
+
+    @TestFactory
+    fun ERROR_UNEXPECTED_PATTERN_FOR_TYPE(): Collection<DynamicTest> {
+        return getBadTests<UnexpectedPatternForType>("ERROR_UNEXPECTED_PATTERN_FOR_TYPE")
+    }
+
 
     @TestFactory
     fun ERROR_UNEXPECTED_RECORD(): Collection<DynamicTest> {
@@ -146,75 +208,14 @@ class TypeCheckerTest {
         return getBadTests<UnexpectedExprType>("ERROR_UNEXPECTED_TYPE_FOR_EXPRESSION")
     }
 
-    @TestFactory
-    fun ERROR_UNDEFINED_VARIABLE(): Collection<DynamicTest> {
-        return getBadTests<UndefinedVariable>("ERROR_UNDEFINED_VARIABLE")
-    }
+
 
     @TestFactory
     fun ERROR_UNEXPECTED_TYPE_FOR_PARAMETER(): Collection<DynamicTest> {
         return getBadTests<UnexpectedParamType>("ERROR_UNEXPECTED_TYPE_FOR_PARAMETER")
     }
 
-    @TestFactory
-    fun ERROR_AMBIGUOUS_LIST(): Collection<DynamicTest> {
-        return getBadTests<AmbiguousList>("ERROR_AMBIGUOUS_LIST")
-    }
 
-    @TestFactory
-    fun ERROR_ILLEGAL_EMPTY_MATCHING(): Collection<DynamicTest> {
-        return getBadTests<IllegalEmptyMatching>("ERROR_ILLEGAL_EMPTY_MATCHING")
-    }
-
-    @TestFactory
-    fun ERROR_INCORRECT_ARITY_OF_MAIN(): Collection<DynamicTest> {
-        return getBadTests<IncorrectArityOfMain>("ERROR_INCORRECT_ARITY_OF_MAIN")
-    }
-
-    @TestFactory
-    fun ERROR_INCORRECT_NUMBER_OF_ARGUMENTS(): Collection<DynamicTest> {
-        return getBadTests<IncorrectNumberOfArguments>("ERROR_INCORRECT_NUMBER_OF_ARGUMENTS")
-    }
-
-    @TestFactory
-    fun ERROR_MISSING_DATA_FOR_LABEL(): Collection<DynamicTest> {
-        return getBadTests<MissingDataForLabel>("ERROR_MISSING_DATA_FOR_LABEL")
-    }
-
-    @TestFactory
-    fun ERROR_NONEXHAUSTIVE_MATCH_PATTERNS(): Collection<DynamicTest> {
-        return getBadTests<NonExhaustiveMatchPatterns>("ERROR_NONEXHAUSTIVE_MATCH_PATTERNS")
-    }
-
-    @TestFactory
-    fun ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL(): Collection<DynamicTest> {
-        return getBadTests<UnexpectedDataForNullaryLabel>("ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL")
-    }
-
-    @TestFactory
-    fun ERROR_UNEXPECTED_INJECTION(): Collection<DynamicTest> {
-        return getBadTests<UnexpectedInjection>("ERROR_UNEXPECTED_INJECTION")
-    }
-
-    @TestFactory
-    fun ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN(): Collection<DynamicTest> {
-        return getBadTests<UnexpectedNonNullaryVariantPattern>("ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN")
-    }
-
-    @TestFactory
-    fun ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN(): Collection<DynamicTest> {
-        return getBadTests<UnexpectedNullaryVariantPattern>("ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN")
-    }
-
-    @TestFactory
-    fun ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA(): Collection<DynamicTest> {
-        return getBadTests<UnexpectedNumberOfLambdaParameters>("ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA")
-    }
-
-    @TestFactory
-    fun ERROR_UNEXPECTED_PATTERN_FOR_TYPE(): Collection<DynamicTest> {
-        return getBadTests<UnexpectedPatternForType>("ERROR_UNEXPECTED_PATTERN_FOR_TYPE")
-    }
 
     @TestFactory
     fun ERROR_UNEXPECTED_VARIANT(): Collection<DynamicTest> {
@@ -226,8 +227,5 @@ class TypeCheckerTest {
         return getBadTests<UnexpectedVariantLabel>("ERROR_UNEXPECTED_VARIANT_LABEL")
     }
 
-    @TestFactory
-    fun ERROR_AMBIGUOUS_SUM_TYPE(): Collection<DynamicTest> {
-        return getBadTests<AmbiguousSumType>("ERROR_AMBIGUOUS_SUM_TYPE")
-    }
+
 }
