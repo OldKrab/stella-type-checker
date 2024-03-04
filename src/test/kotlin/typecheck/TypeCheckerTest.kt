@@ -188,7 +188,7 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL")
+        return getBadTests<UnexpectedDataForNullaryLabel>("ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL")
     }
 
     @TestFactory
@@ -198,17 +198,17 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN")
+        return getBadTests<UnexpectedNonNullaryVariantPattern>("ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN")
     }
 
     @TestFactory
     fun ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN")
+        return getBadTests<UnexpectedNullaryVariantPattern>("ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN")
     }
 
     @TestFactory
     fun ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA(): Collection<DynamicTest> {
-        TODO() //return getBadTests<>("ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA")
+        return getBadTests<UnexpectedNumberOfLambdaParameters>("ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA")
     }
 
     @TestFactory

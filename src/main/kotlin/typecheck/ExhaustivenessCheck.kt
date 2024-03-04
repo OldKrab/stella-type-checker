@@ -17,7 +17,7 @@ fun checkExhaustivePatternsForNat(
     ctx: stellaParser.MatchContext,
     patterns: List<PatternContext>
 ) {
-    class SuccPattern(val level: Int, val restMatched: Boolean)
+    data class SuccPattern(val level: Int, val restMatched: Boolean)
 
     fun convertPattern(pat: PatternSuccContext): SuccPattern {
         var succ: PatternContext = pat
@@ -35,10 +35,10 @@ fun checkExhaustivePatternsForNat(
     val succPatterns = patterns.mapNotNull { if (it is PatternSuccContext) convertPattern(it) else null }
     if (!succPatterns.any { it.restMatched })
         throw NonExhaustiveMatchPatterns(ctx)
-    val minRest = succPatterns.filter { it.restMatched }.minBy { it.level }.level + 1
+    val minRestMatched = succPatterns.filter { it.restMatched }.minBy { it.level }.level
     val matchedNumbers = succPatterns.filter { !it.restMatched }.map { it.level }.toMutableSet()
     matchedNumbers.addAll(patterns.filterIsInstance<PatternIntContext>().map { it.n.text.toInt() })
-    for (i in 0..minRest)
+    for (i in 0..<minRestMatched)
         if (i !in matchedNumbers)
             throw NonExhaustiveMatchPatterns(ctx)
 }
@@ -48,7 +48,7 @@ fun checkExhaustivePatternsForList(
     exprType: ListType,
     patterns: List<PatternContext>
 ) {
-    class ListPattern(val elemsPatterns: List<PatternContext>, val tailMatched: Boolean)
+   data class ListPattern(val elemsPatterns: List<PatternContext>, val tailMatched: Boolean)
 
     fun convertPattern(pat: PatternListContext): ListPattern {
         return ListPattern(pat.patterns, false)
@@ -83,9 +83,12 @@ fun checkExhaustivePatternsForList(
 
     val minSizeWithTailMatched =
         listPatterns.filter { it.tailMatched }.minBy { it.elemsPatterns.size }.elemsPatterns.size
-    for (idx in 0..minSizeWithTailMatched) {
-        val idxPats = listPatterns.filter { it.elemsPatterns.size > idx }.map { it.elemsPatterns[idx] }
-        checkExhaustivePatterns(ctx, exprType.elementsType, idxPats)
+    for (listSize in 0..minSizeWithTailMatched) {
+        val patsWithThatSize = listPatterns.filter { it.elemsPatterns.size == listSize }
+        for(i in 0..<listSize){
+            val elemPats = patsWithThatSize.map { it.elemsPatterns[i] }
+            checkExhaustivePatterns(ctx, exprType.elementsType, elemPats)
+        }
     }
 }
 

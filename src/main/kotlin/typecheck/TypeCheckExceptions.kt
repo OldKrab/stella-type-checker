@@ -215,9 +215,32 @@ class IncorrectNumberOfArguments(expr: ParserRuleContext, private val expectedNu
     override fun getDescription(): String = "Expected $expectedNumber of arguments, but got $actualNumber"
 }
 
-class MissingDataForLabel(expr: ParserRuleContext, private val recordType: Type, private val expectedLabelType: Type, private val label: String) : ExprException(expr) {
+class UnexpectedNumberOfLambdaParameters(expr: ParserRuleContext, private val expectedNumber: Int, private val actualNumber: Int) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_NUMBER_OF_PARAMETERS_IN_LAMBDA"
+    override fun getDescription(): String = "Expected $expectedNumber of parameters in lambda, but got $actualNumber"
+}
+
+
+
+
+class MissingDataForLabel(expr: ParserRuleContext, private val variantType: VariantType, private val expectedLabelType: Type, private val label: String) : ExprException(expr) {
     override fun getTag(): String = "ERROR_MISSING_DATA_FOR_LABEL"
-    override fun getDescription(): String = "Label '$label' in record $recordType expect data of type $expectedLabelType, but data missing"
+    override fun getDescription(): String = "Label '$label' in variant $variantType expect data of type $expectedLabelType, but data missing"
+}
+
+class UnexpectedDataForNullaryLabel(expr: ParserRuleContext, private val variantType: VariantType, private val label: String) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_DATA_FOR_NULLARY_LABEL"
+    override fun getDescription(): String = "Label '$label' in variant $variantType is nullary, but unexpected data given"
+}
+
+class UnexpectedNonNullaryVariantPattern(expr: ParserRuleContext, private val variantType: VariantType, private val label: String) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_NON_NULLARY_VARIANT_PATTERN"
+    override fun getDescription(): String = "Label '$label' in record $variantType is nullary, but unexpected data given in pattern"
+}
+
+class UnexpectedNullaryVariantPattern(expr: ParserRuleContext, private val variantType: VariantType, private val label: String) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN"
+    override fun getDescription(): String = "Label '$label' in record $variantType has type ${variantType.variantsTypes[label]!!}, but its pattern missing"
 }
 
 

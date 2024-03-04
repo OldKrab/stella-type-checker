@@ -96,7 +96,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
 
     /**
-     * Walk pattern and add to typeContext declared variable. Return variables names to remove them further
+     * Walk pattern and add to typeContext declared variable. Return variables names to remove them further. Also checks patterns types
      */
     private val patternVariablesDeclarator =
         object : ParametrizedVisitor<Type, List<String>>("declare pattern variables in") {
@@ -125,9 +125,57 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 val expectedType = this.expectedType
                 if (expectedType !is VariantType) throw UnexpectedPatternForType(ctx, expectedType)
                 val variantLabel = ctx.label.text
-                val expectedVariantType =
-                    expectedType.variantsTypes[variantLabel] ?: throw UnexpectedPatternForType(ctx, expectedType)
-                return declarePattern(ctx.pattern_, expectedVariantType)
+                if (!expectedType.fields.contains(variantLabel))
+                    throw UnexpectedPatternForType(ctx, expectedType)
+                val expectedVariantType = expectedType.variantsTypes[variantLabel]
+                if (ctx.pattern_ == null && expectedVariantType != null)
+                    throw UnexpectedNullaryVariantPattern(ctx, expectedType, variantLabel)
+                if (ctx.pattern_ != null && expectedVariantType == null)
+                    throw UnexpectedNonNullaryVariantPattern(ctx.pattern_, expectedType, variantLabel)
+                if (ctx.pattern_ != null && expectedVariantType != null)
+                    return declarePattern(ctx.pattern_, expectedVariantType)
+                return emptyList()
+            }
+
+            override fun visitPatternTrue(ctx: PatternTrueContext): List<String> = emptyList()
+            override fun visitPatternFalse(ctx: PatternFalseContext): List<String> = emptyList()
+            override fun visitPatternUnit(ctx: stellaParser.PatternUnitContext): List<String> = emptyList()
+            override fun visitPatternInt(ctx: stellaParser.PatternIntContext): List<String> = emptyList()
+
+            override fun visitPatternList(ctx: PatternListContext): List<String> {
+                val expectedType = this.expectedType
+                if (expectedType !is ListType) throw UnexpectedPatternForType(ctx, expectedType)
+                return ctx.patterns.flatMap { declarePattern(it, expectedType.elementsType) }
+            }
+
+            override fun visitPatternSucc(ctx: stellaParser.PatternSuccContext): List<String> {
+                if (expectedType != NatType) throw UnexpectedPatternForType(ctx, expectedType)
+                return declarePattern(ctx.pattern_, expectedType)
+            }
+
+            override fun visitPatternCons(ctx: PatternConsContext): List<String> {
+                val expectedType = this.expectedType
+                if (expectedType !is ListType) throw UnexpectedPatternForType(ctx, expectedType)
+                return declarePattern(ctx.head, expectedType.elementsType) + declarePattern(ctx.tail, expectedType)
+            }
+
+            override fun visitPatternRecord(ctx: stellaParser.PatternRecordContext): List<String> {
+                val expectedType = this.expectedType
+                if (expectedType !is RecordType) throw UnexpectedPatternForType(ctx, expectedType)
+                val patLabels = ctx.patterns.associate { it.label.text to it.pattern_ }
+                if (patLabels.keys != expectedType.labels.toSet()) throw UnexpectedPatternForType(ctx, expectedType)
+                return expectedType.labels.flatMap { declarePattern(patLabels[it]!!, expectedType.fieldsTypes[it]!!) }
+            }
+
+            override fun visitPatternTuple(ctx: stellaParser.PatternTupleContext): List<String> {
+                val expectedType = this.expectedType
+                if (expectedType !is TupleType) throw UnexpectedPatternForType(ctx, expectedType)
+                if (expectedType.fieldsTypes.size != ctx.patterns.size) throw UnexpectedPatternForType(
+                    ctx,
+                    expectedType
+                )
+                return expectedType.fieldsTypes.withIndex()
+                    .flatMap { (i, fType) -> declarePattern(ctx.patterns[i], fType) }
             }
         }
 
@@ -330,6 +378,8 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         override fun visitAbstraction(ctx: stellaParser.AbstractionContext) {
             val expectedType = expectedType
             if (expectedType !is FunType) throw UnexpectedLambda(ctx, expectedType)
+            if (expectedType.paramsTypes.size != ctx.paramDecls.size)
+                throw UnexpectedNumberOfLambdaParameters(ctx, expectedType.paramsTypes.size, ctx.paramDecls.size)
             for ((expectedParamType, decl) in expectedType.paramsTypes.zip(ctx.paramDecls)) {
                 val declType = convertType(decl.paramType)
                 if (declType != expectedParamType) throw UnexpectedParamType(decl, expectedParamType, declType)
@@ -408,7 +458,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             if (variantType != null)
                 expectType(ctx.rhs, variantType)
             else
-                if (ctx.rhs != null) TODO()
+                if (ctx.rhs != null) throw UnexpectedDataForNullaryLabel(ctx.rhs, expectedType, label)
         }
 
         override fun visitInl(ctx: stellaParser.InlContext) {
@@ -422,12 +472,12 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         override fun visitMatch(ctx: MatchContext) {
             if (ctx.cases.size == 0) throw IllegalEmptyMatching(ctx)
             val exprType = inferType(ctx.expr_)
-            checkExhaustivePatterns(ctx, exprType, ctx.cases.map { it.pattern_ })
             for (case in ctx.cases) {
                 val vars = declarePattern(case.pattern_, exprType)
                 expectType(case.expr_, expectedType)
                 forgetAll(vars)
             }
+            checkExhaustivePatterns(ctx, exprType, ctx.cases.map { it.pattern_ })
         }
     }
 
