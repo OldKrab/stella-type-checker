@@ -182,6 +182,11 @@ class AmbiguousVariantType(expr: ParserRuleContext) : ExprException(expr) {
     override fun getDescription(): String = "ambiguous variant type"
 }
 
+class AmbiguousPatternType(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_AMBIGUOUS_PATTERN_TYPE"
+    override fun getDescription(): String = "can not infer type of pattern"
+}
+
 
 class UnexpectedVariant(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr){
     override fun getTag(): String = "ERROR_UNEXPECTED_VARIANT"
@@ -250,5 +255,7 @@ class UnexpectedNullaryVariantPattern(expr: ParserRuleContext, private val varia
     override fun getTag(): String = "ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN"
     override fun getDescription(): String = "Label '$label' in record $variantType has type ${variantType.variantsTypes[label]!!}, but its pattern missing"
 }
+
+
 
 

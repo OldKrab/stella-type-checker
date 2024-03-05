@@ -89,6 +89,12 @@ class TypeCheckerTest {
     }
 
     @TestFactory
+    fun ERROR_AMBIGUOUS_PATTERN_TYPE(): Collection<DynamicTest> {
+        return getBadTests<AmbiguousPatternType>("ERROR_AMBIGUOUS_PATTERN_TYPE")
+    }
+
+
+    @TestFactory
     fun ERROR_AMBIGUOUS_SUM_TYPE(): Collection<DynamicTest> {
         return getBadTests<AmbiguousSumType>("ERROR_AMBIGUOUS_SUM_TYPE")
     }

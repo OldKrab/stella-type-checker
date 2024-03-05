@@ -1,5 +1,6 @@
 package org.old.typecheck
 
+import org.antlr.v4.runtime.ParserRuleContext
 import org.old.grammar.stellaParser
 import org.old.grammar.stellaParser.PatternConsContext
 import org.old.grammar.stellaParser.PatternContext
@@ -14,7 +15,7 @@ fun PatternContext.isVarPattern(): Boolean {
 }
 
 fun checkExhaustivePatternsForNat(
-    ctx: stellaParser.MatchContext,
+    ctx: ParserRuleContext,
     patterns: List<PatternContext>
 ) {
     data class SuccPattern(val level: Int, val restMatched: Boolean)
@@ -44,7 +45,7 @@ fun checkExhaustivePatternsForNat(
 }
 
 fun checkExhaustivePatternsForList(
-    ctx: stellaParser.MatchContext,
+    ctx: ParserRuleContext,
     exprType: ListType,
     patterns: List<PatternContext>
 ) {
@@ -91,13 +92,19 @@ fun checkExhaustivePatternsForList(
         }
     }
 }
-
+fun expandPattern(pat: PatternContext): PatternContext{
+    if(pat is stellaParser.PatternAscContext)
+        return expandPattern(pat.pattern_)
+    if(pat is stellaParser.ParenthesisedPatternContext)
+        return expandPattern(pat.pattern_)
+    return pat
+}
 fun checkExhaustivePatterns(
-    ctx: stellaParser.MatchContext,
+    ctx: ParserRuleContext,
     exprType: Type,
-    patterns: List<PatternContext>
+    patternContexts: List<PatternContext>
 ) {
-
+    val patterns = patternContexts.map { expandPattern(it) }
     if (patterns.any { it.isVarPattern() })
         return
     when (exprType) {

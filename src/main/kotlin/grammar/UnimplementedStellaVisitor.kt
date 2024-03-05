@@ -24,11 +24,15 @@ abstract class UnimplementedStellaVisitor<T>(private val action: String) : Abstr
         return ctx.program().accept(this)
     }
 
+    override fun visitParenthesisedPattern(ctx: stellaParser.ParenthesisedPatternContext): T {
+        return ctx.pattern_.accept(this)
+    }
+
     override fun visitStart_Expr(ctx: stellaParser.Start_ExprContext): T {
         TODO("$action Start_Expr")
     }
 
-    override fun visitPatternAsc(ctx: stellaParser.PatternAscContext?): T {
+    override fun visitPatternAsc(ctx: stellaParser.PatternAscContext): T {
         TODO("$action PatternAsc")
     }
 
@@ -366,9 +370,7 @@ abstract class UnimplementedStellaVisitor<T>(private val action: String) : Abstr
         TODO("$action PatternVar")
     }
 
-    override fun visitParenthesisedPattern(ctx: stellaParser.ParenthesisedPatternContext): T {
-        TODO("$action ParenthesisedPattern")
-    }
+
 
     override fun visitLabelledPattern(ctx: stellaParser.LabelledPatternContext): T {
         TODO("$action LabelledPattern")
