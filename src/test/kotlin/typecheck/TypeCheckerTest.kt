@@ -1,7 +1,11 @@
 package typecheck
 
 import org.antlr.v4.runtime.tree.ParseTree
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DynamicContainer
+import org.junit.jupiter.api.DynamicContainer.dynamicContainer
 import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.TestFactory
 import org.old.getParser
 import org.old.typecheck.*
@@ -58,6 +62,17 @@ class TypeCheckerTest {
         }.toList()
     }
 
+    @TestFactory
+    fun dynamicTestsFromStream(): Collection<DynamicContainer> {
+        return mutableListOf("A", "B", "C")
+            .map { input: String? ->
+                dynamicContainer(
+                    "Container $input", listOf(
+                        dynamicTest("not null") { assertTrue(input != null) },
+                        dynamicTest("not empty") { assertTrue(!input!!.isEmpty()) }
+                    ))
+            }
+    }
     private inline fun <reified T : TypeCheckException> getBadTests(errorTag: String): Collection<DynamicTest> {
         return getTests("/stella-tests/bad/$errorTag") { program, testCase ->
             runBadTest<T>(program, testCase, errorTag)
@@ -76,6 +91,11 @@ class TypeCheckerTest {
     @TestFactory
     fun ERROR_AMBIGUOUS_SUM_TYPE(): Collection<DynamicTest> {
         return getBadTests<AmbiguousSumType>("ERROR_AMBIGUOUS_SUM_TYPE")
+    }
+
+    @TestFactory
+    fun ERROR_AMBIGUOUS_VARIANT_TYPE(): Collection<DynamicTest> {
+        return getBadTests<AmbiguousVariantType>("ERROR_AMBIGUOUS_VARIANT_TYPE")
     }
 
     @TestFactory
@@ -117,7 +137,7 @@ class TypeCheckerTest {
 
     @TestFactory
     fun ERROR_NOT_A_FUNCTION(): Collection<DynamicTest> {
-        return getBadTests<NotFunctionApplication>("ERROR_NOT_A_FUNCTION")
+        return getBadTests<NotFunction>("ERROR_NOT_A_FUNCTION")
     }
     @TestFactory
     fun ERROR_NOT_A_LIST(): Collection<DynamicTest> {

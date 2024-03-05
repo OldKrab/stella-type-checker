@@ -32,14 +32,16 @@ abstract class ExprException(val tree: ParserRuleContext) : TypeCheckException()
 
         val line = tree.start.line
         val lineText = getLineText(tree.start.inputStream, line - 1)
-        val lineStartCol = tree.start.charPositionInLine
-        val stopTokenEnd = tree.stop.charPositionInLine + tree.stop.size()
 
-        val underlineEnd = (if (tree.stop.line != line) lineText.length else stopTokenEnd).coerceAtMost(lineText.length)
-        val underlineSize = underlineEnd - lineStartCol
         val linePrefix = "$line "
         val emptyPrefix = " ".repeat(linePrefix.length)
-        val underline = "$emptyPrefix|${" ".repeat(lineStartCol)}${"-".repeat(underlineSize)} here"
+
+        val stopTokenEnd = tree.stop.charPositionInLine + tree.stop.size()
+        val underlineEnd = (if (tree.stop.line != line) lineText.length else stopTokenEnd).coerceAtMost(lineText.length)
+        val lineStartCol = tree.start.charPositionInLine
+        val underlineSize = underlineEnd - lineStartCol
+        val underlinePrefix = lineText.substring(0, lineStartCol).replace(Regex("[^\\s]"), " ")
+        val underline = "$emptyPrefix|$underlinePrefix${"-".repeat(underlineSize)} here"
         return """
             |${line}:${lineStartCol}: tag: [${getTag()}]
             |error: ${getDescription()} 
@@ -68,9 +70,9 @@ class UnexpectedExprType(expr: ParserRuleContext, private val expectedType: Type
     override fun getDescription(): String = "unexpected type: expected $expectedType, but got $actualType"
 }
 
-class NotFunctionApplication(expr: ParserRuleContext, private val actualType: Type) : ExprException(expr) {
+class NotFunction(expr: ParserRuleContext, private val actualType: Type) : ExprException(expr) {
     override fun getTag(): String = "ERROR_NOT_A_FUNCTION"
-    override fun getDescription(): String = "unexpected type: expected function, but got $actualType"
+    override fun getDescription(): String = "unexpected type: expected one-argument function, but got $actualType"
 
 }
 
@@ -174,6 +176,12 @@ class AmbiguousSumType(expr: ParserRuleContext) : ExprException(expr) {
     override fun getTag(): String = "ERROR_AMBIGUOUS_SUM_TYPE"
     override fun getDescription(): String = "ambiguous sum type"
 }
+
+class AmbiguousVariantType(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_AMBIGUOUS_VARIANT_TYPE"
+    override fun getDescription(): String = "ambiguous variant type"
+}
+
 
 class UnexpectedVariant(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr){
     override fun getTag(): String = "ERROR_UNEXPECTED_VARIANT"
