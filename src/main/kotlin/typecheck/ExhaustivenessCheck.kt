@@ -1,7 +1,9 @@
 package org.old.typecheck
 
-import org.antlr.v4.runtime.ParserRuleContext
 import org.old.grammar.stellaParser.*
+
+
+private class NonExhaustive : Exception()
 
 abstract class Ctor(open val size: Int) // Constructor
 data object TrueCtor : Ctor(0)
@@ -25,7 +27,7 @@ data object Wildcard : Pattern
 typealias PatternRow = List<Pattern>
 typealias PatternMatrix = List<PatternRow>
 
-fun getListPattern(pat: PatternListContext, type: ListType): Pattern {
+private fun getListPattern(pat: PatternListContext, type: ListType): Pattern {
     var res = CtorPattern(NilCtor)
     for (elemPat in pat.patterns.asReversed()) {
         res = CtorPattern(ConsCtor, listOf(getPattern(elemPat, type.elementsType), res))
@@ -33,11 +35,11 @@ fun getListPattern(pat: PatternListContext, type: ListType): Pattern {
     return res
 }
 
-fun getConsPattern(pat: PatternConsContext, type: ListType): Pattern {
+private fun getConsPattern(pat: PatternConsContext, type: ListType): Pattern {
     return CtorPattern(ConsCtor, listOf(getPattern(pat.head, type.elementsType), getPattern(pat.tail, type)))
 }
 
-fun getIntPattern(pat: PatternIntContext): Pattern {
+private fun getIntPattern(pat: PatternIntContext): Pattern {
     var res = CtorPattern(ZeroCtor)
     val value = pat.text.toInt()
     for (elemPat in value downTo 1) {
@@ -46,12 +48,12 @@ fun getIntPattern(pat: PatternIntContext): Pattern {
     return res
 }
 
-fun getRecordPattern(pat: PatternRecordContext, type: RecordType): Pattern {
+private fun getRecordPattern(pat: PatternRecordContext, type: RecordType): Pattern {
     return CtorPattern(RecordCtor(pat.patterns.size, pat.patterns.map { it.label.text }.toSet()), pat.patterns
         .sortedBy { it.label.text }.map { getPattern(it.pattern_, type.fieldsTypes.getValue(it.label.text)) })
 }
 
-fun getVariantPattern(pat: PatternVariantContext, varType: VariantType): Pattern {
+private fun getVariantPattern(pat: PatternVariantContext, varType: VariantType): Pattern {
     val label = pat.label.text
     val elemType = varType.variantsTypes.getValue(label)
     val elemPat = if (elemType == null) emptyList() else listOf(getPattern(pat.pattern_, elemType))
@@ -59,7 +61,7 @@ fun getVariantPattern(pat: PatternVariantContext, varType: VariantType): Pattern
 }
 
 
-fun getPattern(pat: PatternContext, type: Type): Pattern {
+private fun getPattern(pat: PatternContext, type: Type): Pattern {
     return when (pat) {
         is PatternVarContext -> Wildcard
         is PatternTrueContext -> CtorPattern(TrueCtor)
@@ -73,16 +75,16 @@ fun getPattern(pat: PatternContext, type: Type): Pattern {
         is PatternInrContext -> CtorPattern(InrCtor, listOf(getPattern(pat.pattern_, type)))
         is PatternTupleContext -> CtorPattern(TupleCtor(pat.patterns.size), pat.patterns.map { getPattern(it, type) })
         is PatternVariantContext -> getVariantPattern(pat, type as VariantType)
-        is PatternUnitContext ->  CtorPattern(UnitCtor)
+        is PatternUnitContext -> CtorPattern(UnitCtor)
         else -> throw NotImplementedError("For ${pat::class.simpleName}")
     }
 }
 
-fun getPatternMatrix(patterns: List<PatternContext>, type: Type): PatternMatrix {
+private fun getPatternMatrix(patterns: List<PatternContext>, type: Type): PatternMatrix {
     return patterns.map { listOf(getPattern(it, type)) }
 }
 
-fun specializeRow(p: PatternRow, ctor: Ctor): PatternRow? {
+private fun specializeRow(p: PatternRow, ctor: Ctor): PatternRow? {
     val first = p[0]
     val rest = p.slice(1..<p.size)
     return when (first) {
@@ -97,7 +99,7 @@ fun specializeRow(p: PatternRow, ctor: Ctor): PatternRow? {
     }
 }
 
-fun getCtorsSet(ctor: Ctor): Set<Ctor> {
+private fun getCtorsSet(ctor: Ctor): Set<Ctor> {
     if (ctor is VariantCtor) {
         return ctor.type.variantsTypes.map { VariantCtor(it.value == null, it.key, ctor.type) }.toSet()
     }
@@ -115,14 +117,14 @@ fun getCtorsSet(ctor: Ctor): Set<Ctor> {
     return ctorSets.getValue(ctor)
 }
 
-fun isCompleteSet(ctors: Set<Ctor>): Boolean {
+private fun isCompleteSet(ctors: Set<Ctor>): Boolean {
     if (ctors.isEmpty())
         return false
     return getCtorsSet(ctors.first()) == ctors
 }
 
 
-fun defaultRow(p: PatternRow): PatternRow? {
+private fun defaultRow(p: PatternRow): PatternRow? {
     val first = p[0]
     return when (first) {
         is CtorPattern -> null
@@ -131,9 +133,9 @@ fun defaultRow(p: PatternRow): PatternRow? {
 }
 
 
-fun checkExhaustive(ctx: ParserRuleContext, matrix: PatternMatrix, q: PatternRow) {
+private fun checkExhaustive(matrix: PatternMatrix, q: PatternRow) {
     if (matrix.isEmpty())
-        throw NonExhaustiveMatchPatterns(ctx)
+        throw NonExhaustive()
     if (q.isEmpty())
         return
 
@@ -141,7 +143,7 @@ fun checkExhaustive(ctx: ParserRuleContext, matrix: PatternMatrix, q: PatternRow
     when (val firstQ = q[0]) {
         is CtorPattern -> {
             val newMatrix = matrix.mapNotNull { specializeRow(it, firstQ.ctor) }
-            checkExhaustive(ctx, newMatrix, specializeRow(q, firstQ.ctor)!!)
+            checkExhaustive(newMatrix, specializeRow(q, firstQ.ctor)!!)
         }
 
         is Wildcard -> {
@@ -149,24 +151,24 @@ fun checkExhaustive(ctx: ParserRuleContext, matrix: PatternMatrix, q: PatternRow
             if (isCompleteSet(ctors)) {
                 for (ctor in ctors) {
                     val newMatrix = matrix.mapNotNull { specializeRow(it, ctor) }
-                        checkExhaustive(ctx, newMatrix, specializeRow(q, ctor)!!)
+                    checkExhaustive(newMatrix, specializeRow(q, ctor)!!)
 
                 }
             } else {
                 val newMatrix = matrix.mapNotNull { defaultRow(it) }
-                checkExhaustive(ctx, newMatrix, q.slice(1..<q.size))
+                checkExhaustive(newMatrix, q.slice(1..<q.size))
             }
         }
     }
 }
 
 
-fun PatternContext.isVarPattern(): Boolean {
+private fun PatternContext.isVarPattern(): Boolean {
     return this is PatternVarContext
 }
 
 
-fun expandPattern(pat: PatternContext): PatternContext {
+private fun expandPattern(pat: PatternContext): PatternContext {
     if (pat is PatternAscContext)
         return expandPattern(pat.pattern_)
     if (pat is ParenthesisedPatternContext)
@@ -175,12 +177,17 @@ fun expandPattern(pat: PatternContext): PatternContext {
 }
 
 fun checkExhaustivePatterns(
-    ctx: ParserRuleContext,
     exprType: Type,
     patternContexts: List<PatternContext>
-) {
+): Boolean {
+
     val patterns = patternContexts.map { expandPattern(it) }
     if (patterns.any { it.isVarPattern() })
-        return
-    checkExhaustive(ctx, getPatternMatrix(patterns, exprType), listOf(Wildcard))
+        return true
+    try {
+        checkExhaustive(getPatternMatrix(patterns, exprType), listOf(Wildcard))
+    } catch (e: NonExhaustive) {
+        return false
+    }
+    return true
 }

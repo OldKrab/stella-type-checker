@@ -168,7 +168,7 @@ class UnexpectedTupleLength(expr: ParserRuleContext, private val actualLength: I
 }
 
 class AmbiguousList(expr: ParserRuleContext) : ExprException(expr) {
-    override fun getTag(): String = "ERROR_AMBIGUOUS_LIST"
+    override fun getTag(): String = "ERROR_AMBIGUOUS_LIST_TYPE"
     override fun getDescription(): String = "ambiguous list"
 }
 
@@ -211,6 +211,11 @@ class IllegalEmptyMatching(expr: ParserRuleContext) : ExprException(expr) {
 class NonExhaustiveMatchPatterns(expr: ParserRuleContext) : ExprException(expr) {
     override fun getTag(): String = "ERROR_NONEXHAUSTIVE_MATCH_PATTERNS"
     override fun getDescription(): String = "Non exhaustive match patterns"
+}
+
+class NonExhaustiveLetPatterns(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_NONEXHAUSTIVE_LET_PATTERNS"
+    override fun getDescription(): String = "Non exhaustive let patterns"
 }
 
 class UnexpectedPatternForType(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {

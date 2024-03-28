@@ -9,6 +9,7 @@ import org.old.grammar.stellaParser.MatchCaseContext
 import org.old.grammar.stellaParser.MatchContext
 import org.old.grammar.stellaParser.PatternBindingContext
 import org.old.grammar.stellaParser.PatternConsContext
+import org.old.grammar.stellaParser.PatternContext
 import org.old.grammar.stellaParser.PatternTrueContext
 import org.old.grammar.stellaParser.PatternFalseContext
 import org.old.grammar.stellaParser.PatternListContext
@@ -156,11 +157,27 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                     return declarePattern(ctx.pattern_, null)
                 return emptyList()
             }
-
-            override fun visitPatternTrue(ctx: PatternTrueContext): List<String> = emptyList()
-            override fun visitPatternFalse(ctx: PatternFalseContext): List<String> = emptyList()
-            override fun visitPatternUnit(ctx: stellaParser.PatternUnitContext): List<String> = emptyList()
-            override fun visitPatternInt(ctx: stellaParser.PatternIntContext): List<String> = emptyList()
+            fun throwIfNotExpected(ctx: PatternContext, actualType: Type){
+                val expectedType = this.expectedType
+                if(expectedType != null && expectedType != actualType)
+                    throw UnexpectedPatternForType(ctx, expectedType)
+            }
+            override fun visitPatternTrue(ctx: PatternTrueContext): List<String> {
+                throwIfNotExpected(ctx, BoolType)
+                return emptyList()
+            }
+            override fun visitPatternFalse(ctx: PatternFalseContext): List<String> {
+                throwIfNotExpected(ctx, BoolType)
+                return emptyList()
+            }
+            override fun visitPatternUnit(ctx: stellaParser.PatternUnitContext): List<String> {
+                throwIfNotExpected(ctx, UnitType)
+                return emptyList()
+            }
+            override fun visitPatternInt(ctx: stellaParser.PatternIntContext): List<String> {
+                throwIfNotExpected(ctx, NatType)
+                return emptyList()
+            }
 
             override fun visitPatternList(ctx: PatternListContext): List<String> {
                 val expectedType = this.expectedType
@@ -226,7 +243,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
     private val typeInfererVisitor = object : UnimplementedStellaVisitor<Type>("infer type of") {
 
         override fun visitLetRec(ctx: stellaParser.LetRecContext): Type {
-            val params = declarePatternBindingsWithoutTypeCheck(ctx.patternBindings)
+            val params = declareLetBindingsWithoutTypeCheck(ctx.patternBindings)
             val type = inferType(ctx.body)
             forgetAll(params)
             return type
@@ -331,7 +348,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitLet(ctx: stellaParser.LetContext): Type {
-            val params = declarePatternBindings(ctx.patternBindings)
+            val params = declareLetBindings(ctx.patternBindings)
             val type = inferType(ctx.body)
             forgetAll(params)
             return type
@@ -494,13 +511,13 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitLetRec(ctx: stellaParser.LetRecContext) {
-            val params = declarePatternBindingsWithoutTypeCheck(ctx.patternBindings)
+            val params = declareLetBindingsWithoutTypeCheck(ctx.patternBindings)
             expectType(ctx.body, expectedType)
             forgetAll(params)
         }
 
         override fun visitLet(ctx: stellaParser.LetContext) {
-            val params = declarePatternBindings(ctx.patternBindings)
+            val params = declareLetBindings(ctx.patternBindings)
             expectType(ctx.body, expectedType)
             forgetAll(params)
         }
@@ -635,20 +652,22 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         return trees.map { declare(it) }
     }
 
-    fun declarePatternBindings(patternBindings: List<PatternBindingContext>): List<String> {
+    fun declareLetBindings(patternBindings: List<PatternBindingContext>): List<String> {
         return patternBindings.flatMap {
             val rhsType = inferType(it.rhs)
             val params = declarePattern(it.pat, rhsType)
-            checkExhaustivePatterns(it, rhsType, listOf(it.pat))
+            if (!checkExhaustivePatterns(rhsType, listOf(it.pat)))
+                throw NonExhaustiveLetPatterns(it)
             params
         }
     }
 
-    fun declarePatternBindingsWithoutTypeCheck(patternBindings: List<PatternBindingContext>): List<String> {
+    fun declareLetBindingsWithoutTypeCheck(patternBindings: List<PatternBindingContext>): List<String> {
         return patternBindings.flatMap {
             val params = declarePattern(it.pat, null)
             val rhsType = inferType(it.rhs)
-            checkExhaustivePatterns(it, rhsType, listOf(it.pat))
+            if (!checkExhaustivePatterns(rhsType, listOf(it.pat)))
+                throw NonExhaustiveLetPatterns(it)
             params
         }
     }
@@ -666,7 +685,8 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             throw IllegalEmptyMatching(ctx)
         val exprType = inferType(ctx.expr_)
         val res = action(exprType)
-        checkExhaustivePatterns(ctx, exprType, ctx.cases.map { it.pattern_ })
+        if (!checkExhaustivePatterns(exprType, ctx.cases.map { it.pattern_ }))
+            throw NonExhaustiveMatchPatterns(ctx)
         return res
     }
 
