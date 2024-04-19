@@ -15,6 +15,7 @@ import org.old.grammar.stellaParser.PatternFalseContext
 import org.old.grammar.stellaParser.PatternListContext
 import org.old.grammar.stellaParser.PatternVarContext
 
+
 /***
  * Main class for type checking. Walk parse tree with context and infer or check expected types
  */
@@ -441,6 +442,25 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         override fun visitPanic(ctx: stellaParser.PanicContext): Type {
             throw AmbiguousPanic(ctx)
         }
+
+        override fun visitThrow(ctx: stellaParser.ThrowContext): Type {
+            throw AmbiguousThrow(ctx)
+        }
+
+        override fun visitTryCatch(ctx: stellaParser.TryCatchContext): Type {
+            val t = inferType(ctx.tryExpr)
+            visitCatch(ctx) {
+                expectType(ctx.fallbackExpr, t)
+            }
+            return t
+        }
+
+        override fun visitTryWith(ctx: stellaParser.TryWithContext): Type {
+            val t = inferType(ctx.tryExpr)
+            expectType(ctx.fallbackExpr, t)
+            return t
+        }
+
     }
 
 
@@ -672,12 +692,29 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitConstMemory(ctx: stellaParser.ConstMemoryContext) {
-            if(expectedType !is RefType){
+            if (expectedType !is RefType) {
                 throw UnexpectedMemoryAddress(ctx, expectedType)
             }
         }
 
         override fun visitPanic(ctx: stellaParser.PanicContext) {
+        }
+
+        override fun visitThrow(ctx: stellaParser.ThrowContext) {
+            val exceptionsType = typeContext.exceptionsType ?: throw ExceptionTypeNotDeclared(ctx.expr_)
+            expectType(ctx.expr_, exceptionsType)
+        }
+
+        override fun visitTryCatch(ctx: stellaParser.TryCatchContext) {
+            expectType(ctx.tryExpr, expectedType)
+            visitCatch(ctx) {
+                expectType(ctx.fallbackExpr, expectedType)
+            }
+        }
+
+        override fun visitTryWith(ctx: stellaParser.TryWithContext) {
+            expectType(ctx.tryExpr, expectedType)
+            expectType(ctx.fallbackExpr, expectedType)
         }
 
     }
@@ -773,6 +810,14 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         return res
     }
 
+    fun <T> visitCatch(ctx: stellaParser.TryCatchContext, action: () -> T): T {
+        val exceptionsType = typeContext.exceptionsType ?: throw ExceptionTypeNotDeclared(ctx.pat)
+        val vars = declarePattern(ctx.pat, exceptionsType)
+        val res = action()
+        forgetAll(vars)
+        return res
+    }
+
     override fun visitProgram(ctx: stellaParser.ProgramContext) {
         ctx.decls.forEach { it.accept(this) }
 
@@ -781,6 +826,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             throw MainMissing()
         if (main.paramDecls.size != 1)
             throw IncorrectArityOfMain(main)
+    }
+
+    override fun visitDeclExceptionType(ctx: stellaParser.DeclExceptionTypeContext) {
+        typeContext.exceptionsType = convertType(ctx.exceptionType)
     }
 
     // Top level functions declarations

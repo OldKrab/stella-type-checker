@@ -195,6 +195,12 @@ class AmbiguousPanic(expr: ParserRuleContext) : ExprException(expr) {
     override fun getDescription(): String = "ambiguous panic"
 }
 
+class AmbiguousThrow(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_AMBIGUOUS_THROW_TYPE"
+    override fun getDescription(): String = "ambiguous throw"
+}
+
+
 class AmbiguousSumType(expr: ParserRuleContext) : ExprException(expr) {
     override fun getTag(): String = "ERROR_AMBIGUOUS_SUM_TYPE"
     override fun getDescription(): String = "ambiguous sum type"
@@ -283,6 +289,13 @@ class UnexpectedNullaryVariantPattern(expr: ParserRuleContext, private val varia
     override fun getTag(): String = "ERROR_UNEXPECTED_NULLARY_VARIANT_PATTERN"
     override fun getDescription(): String = "Label '$label' in record $variantType has type ${variantType.variantsTypes[label]!!}, but its pattern missing"
 }
+
+class ExceptionTypeNotDeclared(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_EXCEPTION_TYPE_NOT_DECLARED"
+    override fun getDescription(): String = "Exception type not declared"
+}
+
+
 
 
 

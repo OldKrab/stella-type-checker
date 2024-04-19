@@ -1,7 +1,8 @@
 package org.old.typecheck
 
 class TypeContext {
-    val vars = HashMap<String, MutableList<Type>>()
+    private val vars = HashMap<String, MutableList<Type>>()
+     var exceptionsType: Type? = null
 
     fun getVarType(name: String): Type? = vars[name]?.lastOrNull()
 

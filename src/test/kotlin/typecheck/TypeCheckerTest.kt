@@ -83,12 +83,14 @@ class TypeCheckerTest {
     @Test
     fun fastTest(){
         val source = """
-        language core;
-        extend with #references, #sequencing;
-
-        fn main(n : &Nat) -> Nat {
-        	return n := 0; succ(0)
-        }
+       language core;
+extend with #exceptions, #exception-type-declaration;
+fn fail(n : Nat) -> Bool {
+  return true
+}
+fn main(n : Nat) -> Bool {
+  return try { throw(n) } catch { a => true }
+}
         """.trimIndent()
 
         val (_, errorListener, program) = getParser(source)
