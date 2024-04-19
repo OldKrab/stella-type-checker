@@ -90,15 +90,25 @@ class NotRecord(expr: ParserRuleContext, private val actualType: Type) : ExprExc
 
 class NotList(expr: ParserRuleContext, private val actualType: Type) : ExprException(expr) {
     override fun getTag(): String = "ERROR_NOT_A_LIST"
-    override fun getDescription(): String = "unexpected type: expected list, but got $actualType"
+    override fun getDescription(): String = "unexpected type: expected list type, but got $actualType"
+}
 
+class NotRef(expr: ParserRuleContext, private val actualType: Type) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_NOT_A_REFERENCE"
+    override fun getDescription(): String = "unexpected type: expected reference type, but got $actualType"
 }
 
 class UnexpectedLambda(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {
     override fun getTag(): String = "ERROR_UNEXPECTED_LAMBDA"
-    override fun getDescription(): String = "unexpected type: expected $expectedType, but got lambda"
-
+    override fun getDescription(): String = "unexpected type: expected $expectedType, but got lambda type"
 }
+
+class UnexpectedReference(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_REFERENCE"
+    override fun getDescription(): String = "unexpected type: expected $expectedType, but got reference type"
+}
+
+
 
 class UnexpectedParamType(expr: ParserRuleContext, private val expectedType: Type, private val actualType: Type) :
     ExprException(expr) {
@@ -120,9 +130,12 @@ class UnexpectedRecord(expr: ParserRuleContext, private val expectedType: Type) 
 
 class UnexpectedList(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {
     override fun getTag(): String = "ERROR_UNEXPECTED_LIST"
-
     override fun getDescription(): String = "unexpected type: expected $expectedType, but got list"
+}
 
+class UnexpectedMemoryAddress(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_MEMORY_ADDRESS"
+    override fun getDescription(): String = "unexpected type: expected $expectedType, but got memory address"
 }
 
 class MissingRecordFields(
@@ -171,6 +184,12 @@ class AmbiguousList(expr: ParserRuleContext) : ExprException(expr) {
     override fun getTag(): String = "ERROR_AMBIGUOUS_LIST_TYPE"
     override fun getDescription(): String = "ambiguous list"
 }
+
+class AmbiguousRef(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_AMBIGUOUS_REFERENCE_TYPE"
+    override fun getDescription(): String = "ambiguous reference"
+}
+
 
 class AmbiguousSumType(expr: ParserRuleContext) : ExprException(expr) {
     override fun getTag(): String = "ERROR_AMBIGUOUS_SUM_TYPE"

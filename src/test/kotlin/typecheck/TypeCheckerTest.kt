@@ -7,6 +7,7 @@ import org.junit.jupiter.api.DynamicContainer
 import org.junit.jupiter.api.DynamicContainer.dynamicContainer
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.fail
 import org.old.getParser
@@ -78,6 +79,23 @@ class TypeCheckerTest {
     @TestFactory
     fun OkTests(): Collection<DynamicTest> {
         return getTests(getResource("/stella-tests/ok"), ::runOkTest)
+    }
+
+    @Test
+    fun fastTest(){
+        val source = """
+        language core;
+        extend with #references, #sequencing;
+
+        fn main(n : &Nat) -> Nat {
+        	return n := 0; succ(0)
+        }
+        """.trimIndent()
+
+        val (_, errorListener, program) = getParser(source)
+        errorListener.getSyntaxErrors().forEach { println(it) }
+        assertEquals(0, errorListener.getSyntaxErrors().size)
+        checkTypes(program)
     }
 
 

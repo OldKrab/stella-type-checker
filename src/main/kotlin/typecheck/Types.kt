@@ -43,6 +43,11 @@ data class SumType(val inl: Type, val inr: Type) : Type {
     override fun toString(): String = "$inl + $inr"
 }
 
+data class RefType(val inner: Type) : Type {
+    override fun toString(): String = "&$inner"
+}
+
+
 
 fun isTypesEqual(type: Type, to: Type): Boolean {
     return type == to

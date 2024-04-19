@@ -54,9 +54,6 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             return ListType(elemType)
         }
 
-
-
-
         override fun visitTypeVariant(ctx: stellaParser.TypeVariantContext): Type {
             val fields = ctx.fieldTypes.map { it.label.text }
             val fieldsTypes =
@@ -66,6 +63,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         override fun visitTypeSum(ctx: stellaParser.TypeSumContext): Type {
             return SumType(convertType(ctx.left), convertType(ctx.right))
+        }
+
+        override fun visitTypeRef(ctx: stellaParser.TypeRefContext): Type {
+            return RefType(convertType(ctx.type_))
         }
     }
 
@@ -159,23 +160,28 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                     return declarePattern(ctx.pattern_, null)
                 return emptyList()
             }
-            fun throwIfNotExpected(ctx: PatternContext, actualType: Type){
+
+            fun throwIfNotExpected(ctx: PatternContext, actualType: Type) {
                 val expectedType = this.expectedType
-                if(expectedType != null && expectedType != actualType)
+                if (expectedType != null && expectedType != actualType)
                     throw UnexpectedPatternForType(ctx, expectedType)
             }
+
             override fun visitPatternTrue(ctx: PatternTrueContext): List<String> {
                 throwIfNotExpected(ctx, BoolType)
                 return emptyList()
             }
+
             override fun visitPatternFalse(ctx: PatternFalseContext): List<String> {
                 throwIfNotExpected(ctx, BoolType)
                 return emptyList()
             }
+
             override fun visitPatternUnit(ctx: stellaParser.PatternUnitContext): List<String> {
                 throwIfNotExpected(ctx, UnitType)
                 return emptyList()
             }
+
             override fun visitPatternInt(ctx: stellaParser.PatternIntContext): List<String> {
                 throwIfNotExpected(ctx, NatType)
                 return emptyList()
@@ -411,6 +417,26 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             expectType(ctx.expr1, UnitType)
             return inferType(ctx.expr2)
         }
+
+        override fun visitAssign(ctx: stellaParser.AssignContext): Type {
+            inferAnyRef(ctx.lhs)
+            inferType(ctx.rhs)
+            return UnitType
+        }
+
+        override fun visitDeref(ctx: stellaParser.DerefContext): Type {
+            val ref = inferAnyRef(ctx.expr_)
+            return ref.inner
+        }
+
+        override fun visitRef(ctx: stellaParser.RefContext): Type {
+            val t = inferType(ctx.expr_)
+            return RefType(t)
+        }
+
+        override fun visitConstMemory(ctx: stellaParser.ConstMemoryContext): Type {
+            throw AmbiguousRef(ctx)
+        }
     }
 
 
@@ -623,6 +649,29 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             expectType(ctx.expr1, UnitType)
             expectType(ctx.expr2, expectedType)
         }
+
+        override fun visitAssign(ctx: stellaParser.AssignContext) {
+            throwIfNotExpected(ctx, inferType(ctx))
+        }
+
+
+        override fun visitDeref(ctx: stellaParser.DerefContext) {
+            expectType(ctx.expr_, RefType(expectedType))
+        }
+
+        override fun visitRef(ctx: stellaParser.RefContext) {
+            val expectedRef = expectedType
+            if (expectedRef !is RefType) {
+                throw UnexpectedReference(ctx, expectedRef)
+            }
+            expectType(ctx.expr_, expectedRef.inner)
+        }
+
+        override fun visitConstMemory(ctx: stellaParser.ConstMemoryContext) {
+            if(expectedType !is RefType){
+                throw UnexpectedMemoryAddress(ctx, expectedType)
+            }
+        }
     }
 
     fun getVarType(ctx: stellaParser.VarContext): Type {
@@ -645,6 +694,13 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         val exprType = inferType(list)
         if (exprType !is ListType)
             throw NotList(list, exprType)
+        return exprType
+    }
+
+    private fun inferAnyRef(ref: stellaParser.ExprContext): RefType {
+        val exprType = inferType(ref)
+        if (exprType !is RefType)
+            throw NotRef(ref, exprType)
         return exprType
     }
 
