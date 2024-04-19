@@ -437,6 +437,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         override fun visitConstMemory(ctx: stellaParser.ConstMemoryContext): Type {
             throw AmbiguousRef(ctx)
         }
+
+        override fun visitPanic(ctx: stellaParser.PanicContext): Type {
+            throw AmbiguousPanic(ctx)
+        }
     }
 
 
@@ -672,6 +676,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 throw UnexpectedMemoryAddress(ctx, expectedType)
             }
         }
+
+        override fun visitPanic(ctx: stellaParser.PanicContext) {
+        }
+
     }
 
     fun getVarType(ctx: stellaParser.VarContext): Type {

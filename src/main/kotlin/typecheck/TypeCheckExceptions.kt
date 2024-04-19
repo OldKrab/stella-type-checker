@@ -190,6 +190,10 @@ class AmbiguousRef(expr: ParserRuleContext) : ExprException(expr) {
     override fun getDescription(): String = "ambiguous reference"
 }
 
+class AmbiguousPanic(expr: ParserRuleContext) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_AMBIGUOUS_PANIC_TYPE"
+    override fun getDescription(): String = "ambiguous panic"
+}
 
 class AmbiguousSumType(expr: ParserRuleContext) : ExprException(expr) {
     override fun getTag(): String = "ERROR_AMBIGUOUS_SUM_TYPE"
