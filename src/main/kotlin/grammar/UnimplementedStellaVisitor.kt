@@ -28,6 +28,18 @@ abstract class UnimplementedStellaVisitor<T>(private val action: String) : Abstr
         return ctx.pattern_.accept(this)
     }
 
+    override fun visitTryCastAs(ctx: stellaParser.TryCastAsContext?): T {
+        TODO("Not yet implemented TryCastAs")
+    }
+
+    override fun visitPatternCastAs(ctx: stellaParser.PatternCastAsContext?): T {
+        TODO("Not yet implemented PatternCastAs")
+    }
+
+    override fun visitTypeAuto(ctx: stellaParser.TypeAutoContext?): T {
+        TODO("Not yet implemented TypeAuto")
+    }
+
     override fun visitStart_Expr(ctx: stellaParser.Start_ExprContext): T {
         TODO("$action Start_Expr")
     }

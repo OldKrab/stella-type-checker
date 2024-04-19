@@ -55,6 +55,8 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
 
+
+
         override fun visitTypeVariant(ctx: stellaParser.TypeVariantContext): Type {
             val fields = ctx.fieldTypes.map { it.label.text }
             val fieldsTypes =
@@ -404,6 +406,11 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         override fun visitInr(ctx: stellaParser.InrContext): Type {
             throw AmbiguousSumType(ctx)
         }
+
+        override fun visitSequence(ctx: stellaParser.SequenceContext): Type {
+            expectType(ctx.expr1, UnitType)
+            return inferType(ctx.expr2)
+        }
     }
 
 
@@ -610,6 +617,11 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                     }
                 }
             }
+        }
+
+        override fun visitSequence(ctx: stellaParser.SequenceContext) {
+            expectType(ctx.expr1, UnitType)
+            expectType(ctx.expr2, expectedType)
         }
     }
 
