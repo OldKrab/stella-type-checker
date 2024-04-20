@@ -3,6 +3,8 @@ package org.old.typecheck
 class TypeContext {
     private val vars = HashMap<String, MutableList<Type>>()
      var exceptionsType: Type? = null
+    var isSubTypingEnabled: Boolean = false
+    var isAmbiguousTypeAsBottom: Boolean = false
 
     fun getVarType(name: String): Type? = vars[name]?.lastOrNull()
 

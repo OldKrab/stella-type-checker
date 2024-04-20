@@ -70,6 +70,13 @@ class UnexpectedExprType(expr: ParserRuleContext, private val expectedType: Type
     override fun getDescription(): String = "unexpected type: expected $expectedType, but got $actualType"
 }
 
+class UnexpectedSubType(expr: ParserRuleContext, private val expectedType: Type, private val actualType: Type) :
+    ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_SUBTYPE"
+    override fun getDescription(): String = "unexpected subtype: expected $expectedType, but got $actualType"
+}
+
+
 class NotFunction(expr: ParserRuleContext, private val actualType: Type) : ExprException(expr) {
     override fun getTag(): String = "ERROR_NOT_A_FUNCTION"
     override fun getDescription(): String = "unexpected type: expected one-argument function, but got $actualType"
@@ -119,8 +126,9 @@ class UnexpectedParamType(expr: ParserRuleContext, private val expectedType: Typ
 class UnexpectedTuple(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {
     override fun getTag(): String = "ERROR_UNEXPECTED_TUPLE"
     override fun getDescription(): String = "unexpected type: expected $expectedType, but got tuple"
-
 }
+
+
 
 class UnexpectedRecord(expr: ParserRuleContext, private val expectedType: Type) : ExprException(expr) {
     override fun getTag(): String = "ERROR_UNEXPECTED_RECORD"

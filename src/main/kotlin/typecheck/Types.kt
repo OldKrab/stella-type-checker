@@ -13,7 +13,14 @@ data object BoolType : Type {
 
 data object UnitType : Type {
     override fun toString(): String = "Unit"
+}
 
+data object  TopType : Type {
+    override fun toString(): String = "Top"
+}
+
+data object BotType : Type {
+    override fun toString(): String = "Bot"
 }
 
 data class TupleType(val fieldsTypes: List<Type>) : Type {
@@ -49,6 +56,3 @@ data class RefType(val inner: Type) : Type {
 
 
 
-fun isTypesEqual(type: Type, to: Type): Boolean {
-    return type == to
-}

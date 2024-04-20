@@ -26,6 +26,9 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
      * Walk type nodes and create inner type objects from them
      */
     private val typeConverterVisitor = object : UnimplementedStellaVisitor<Type>("convert type of") {
+        override fun visitTypeTop(ctx: stellaParser.TypeTopContext): Type = TopType
+
+        override fun visitTypeBottom(ctx: stellaParser.TypeBottomContext): Type = BotType
 
         override fun visitTypeNat(ctx: stellaParser.TypeNatContext): Type = NatType
 
@@ -264,6 +267,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitVariant(ctx: stellaParser.VariantContext): Type {
+            if(typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousVariantType(ctx)
         }
 
@@ -387,8 +391,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
 
         override fun visitList(ctx: stellaParser.ListContext): Type {
-            if (ctx.exprs.size == 0)
+            if (ctx.exprs.size == 0){
+                if(typeContext.isAmbiguousTypeAsBottom) return BotType
                 throw AmbiguousList(ctx) // can not infer without expected type
+            }
             val firstType = inferType(ctx.exprs[0])
             for (otherExpr in ctx.exprs.asSequence().drop(1)) expectType(otherExpr, firstType)
             return ListType(firstType)
@@ -407,10 +413,12 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
 
         override fun visitInl(ctx: stellaParser.InlContext): Type {
+            if(typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousSumType(ctx)
         }
 
         override fun visitInr(ctx: stellaParser.InrContext): Type {
+            if(typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousSumType(ctx)
         }
 
@@ -420,8 +428,8 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitAssign(ctx: stellaParser.AssignContext): Type {
-            inferAnyRef(ctx.lhs)
-            inferType(ctx.rhs)
+            val ref = inferAnyRef(ctx.lhs)
+            expectType(ctx.rhs, ref.inner)
             return UnitType
         }
 
@@ -436,14 +444,17 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitConstMemory(ctx: stellaParser.ConstMemoryContext): Type {
+            if(typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousRef(ctx)
         }
 
         override fun visitPanic(ctx: stellaParser.PanicContext): Type {
+            if(typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousPanic(ctx)
         }
 
         override fun visitThrow(ctx: stellaParser.ThrowContext): Type {
+            if(typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousThrow(ctx)
         }
 
@@ -471,17 +482,87 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         val expectedType
             get() = arg!!
 
+        fun checkMissingRecordFields(ctx: ParserRuleContext, subFields: Set<String>, baseType: RecordType) {
+            val missingFields = baseType.fieldsTypes.keys - subFields
+            if (missingFields.isNotEmpty())
+                throw MissingRecordFields(ctx, baseType, missingFields)
+        }
+
+        fun checkNullableVariantField(
+            ctx: ParserRuleContext,
+            variantType: VariantType,
+            label: String,
+            isActualNull: Boolean
+        ) {
+            val expectedLabelType = variantType.variantsTypes[label]
+            if (isActualNull && expectedLabelType != null)
+                throw MissingDataForLabel(ctx, variantType, expectedLabelType, label)
+            if (!isActualNull && expectedLabelType == null)
+                throw UnexpectedDataForNullaryLabel(ctx, variantType, label)
+        }
+
+        fun checkVariantsSubTyping(ctx: ParserRuleContext, subType: VariantType, baseType: VariantType) {
+            val extraFields = subType.variantsTypes.keys - baseType.variantsTypes.keys
+            if (extraFields.isNotEmpty()) throw UnexpectedVariantLabel(ctx, baseType, extraFields.first())
+            for ((subFieldName, subFieldType) in subType.variantsTypes.entries) {
+                val baseFieldType = baseType.variantsTypes.getValue(subFieldName)
+                checkNullableVariantField(ctx, baseType, subFieldName, subFieldType == null)
+                if (subFieldType != null && baseFieldType != null)
+                    checkSubTypeOf(ctx, subFieldType, baseFieldType)
+            }
+        }
+
+        fun checkTupleSubTyping(ctx: ParserRuleContext, subType: TupleType, baseType: TupleType) {
+            if (baseType.fieldsTypes.size != subType.fieldsTypes.size)
+                throw UnexpectedTupleLength(ctx, subType.fieldsTypes.size, baseType.fieldsTypes.size)
+            for ((baseFieldType, subFieldType) in baseType.fieldsTypes.zip(subType.fieldsTypes))
+                checkSubTypeOf(ctx, subFieldType, baseFieldType)
+        }
+
+        fun checkFuncSubType(ctx: ParserRuleContext, subType: FunType, baseType: FunType) {
+            checkSubTypeOf(ctx, subType.retType, baseType.retType)
+            if (baseType.paramsTypes.size != subType.paramsTypes.size) throw UnexpectedSubType(ctx, baseType, subType)
+            baseType.paramsTypes.zip(subType.paramsTypes)
+                .forEach { (baseParam, subParam) -> checkSubTypeOf(ctx, baseParam, subParam) }
+        }
+
+        fun checkSubTypeOf(ctx: ParserRuleContext, subType: Type, baseType: Type) {
+            if (baseType is TopType || subType is BotType) return
+            else if (subType is RecordType && baseType is RecordType) {
+                checkMissingRecordFields(ctx, subType.fieldsTypes.keys, baseType)
+                baseType.fieldsTypes.entries.forEach { (baseFieldName, baseFieldType) ->
+                    checkSubTypeOf(ctx, subType.fieldsTypes.getValue(baseFieldName), baseFieldType)
+                }
+            } else if (subType is VariantType && baseType is VariantType) {
+                checkVariantsSubTyping(ctx, subType, baseType)
+            } else if (subType is FunType && baseType is FunType) {
+                checkFuncSubType(ctx, subType, baseType)
+            } else if (subType is TupleType && baseType is TupleType) {
+                checkTupleSubTyping(ctx, subType, baseType)
+            } else if (subType != baseType)
+                throw UnexpectedSubType(ctx, baseType, subType)
+        }
+
+
         private fun throwIfNotExpected(ctx: ParserRuleContext, actualType: Type) {
-            if (!isTypesEqual(actualType, expectedType))
+            if (typeContext.isSubTypingEnabled)
+                checkSubTypeOf(ctx, actualType, expectedType)
+            else if (actualType != expectedType)
                 throw UnexpectedExprType(ctx, expectedType, actualType)
         }
 
         override fun visitConsList(ctx: stellaParser.ConsListContext) {
             val expectedType = expectedType
-            if (expectedType !is ListType)
+            if (expectedType is ListType) {
+                expectType(ctx.head, expectedType.elementsType)
+                expectType(ctx.tail, expectedType)
+            } else if (expectedType is TopType) {
+                expectType(ctx.head, TopType)
+                expectType(ctx.tail, TopType)
+            } else {
                 throw UnexpectedList(ctx, expectedType)
-            expectType(ctx.head, expectedType.elementsType)
-            expectType(ctx.tail, expectedType)
+            }
+
         }
 
         override fun visitVar(ctx: stellaParser.VarContext) {
@@ -505,16 +586,20 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 throw UnexpectedRecord(ctx, expectedType)
 
             val declaredFields = ctx.bindings.map { it.name.text }.toSet()
+            if (!typeContext.isSubTypingEnabled) {
+                val unexpectedFields = declaredFields - expectedType.fieldsTypes.keys
+                if (unexpectedFields.isNotEmpty())
+                    throw UnexpectedRecordFields(ctx, expectedType, unexpectedFields)
+            }
 
-            val unexpectedFields = declaredFields - expectedType.fieldsTypes.keys
-            if (unexpectedFields.isNotEmpty())
-                throw UnexpectedRecordFields(ctx, expectedType, unexpectedFields)
+            checkMissingRecordFields(ctx, declaredFields, expectedType)
 
-            val missingFields = expectedType.fieldsTypes.keys - declaredFields
-            if (missingFields.isNotEmpty())
-                throw MissingRecordFields(ctx, expectedType, missingFields)
             for (declaredField in ctx.bindings) {
-                expectType(declaredField.rhs, expectedType.fieldsTypes[declaredField.name.text]!!)
+                val fieldName = declaredField.name.text
+                if (fieldName in expectedType.fieldsTypes)
+                    expectType(declaredField.rhs, expectedType.fieldsTypes[declaredField.name.text]!!)
+                else
+                    expectType(declaredField.rhs, TopType)
             }
         }
 
@@ -559,7 +644,9 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 throw UnexpectedNumberOfLambdaParameters(ctx, expectedType.paramsTypes.size, ctx.paramDecls.size)
             for ((expectedParamType, decl) in expectedType.paramsTypes.zip(ctx.paramDecls)) {
                 val declType = convertType(decl.paramType)
-                if (declType != expectedParamType)
+                if (typeContext.isSubTypingEnabled) {
+                    checkSubTypeOf(decl, expectedParamType, declType)
+                } else if (expectedParamType != declType)
                     throw UnexpectedParamType(decl, expectedParamType, declType)
             }
             val params = declareAll(ctx.paramDecls)
@@ -598,9 +685,13 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         override fun visitList(ctx: stellaParser.ListContext) {
             val expectedType = expectedType
-            if (expectedType !is ListType)
+            if (expectedType is ListType) {
+                ctx.exprs.forEach { expectType(it, expectedType.elementsType) }
+            } else if (expectedType is TopType) {
+                ctx.exprs.forEach { expectType(it, TopType) }
+            } else {
                 throw UnexpectedList(ctx, expectedType)
-            ctx.exprs.forEach { expectType(it, expectedType.elementsType) }
+            }
         }
 
         override fun visitIsEmpty(ctx: stellaParser.IsEmptyContext) {
@@ -629,6 +720,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             expectType(ctx.expr_, FunType(listOf(expectedType), expectedType))
         }
 
+
         override fun visitVariant(ctx: stellaParser.VariantContext) {
             val expectedType = expectedType
             if (expectedType !is VariantType)
@@ -637,12 +729,9 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             if (!expectedType.variantsTypes.containsKey(label))
                 throw UnexpectedVariantLabel(ctx, expectedType, label)
             val variantType = expectedType.variantsTypes.getValue(label)
-            if (ctx.rhs == null && variantType != null)
-                throw MissingDataForLabel(ctx, expectedType, variantType, label)
+            checkNullableVariantField(ctx, expectedType, label, ctx.rhs == null)
             if (variantType != null)
                 expectType(ctx.rhs, variantType)
-            else if (ctx.rhs != null)
-                throw UnexpectedDataForNullaryLabel(ctx.rhs, expectedType, label)
         }
 
         override fun visitInl(ctx: stellaParser.InlContext) {
@@ -685,14 +774,18 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         override fun visitRef(ctx: stellaParser.RefContext) {
             val expectedRef = expectedType
-            if (expectedRef !is RefType) {
+            if (expectedRef is RefType) {
+                expectType(ctx.expr_, expectedRef.inner)
+            } else if (expectedType is TopType) {
+                expectType(ctx.expr_, TopType)
+            } else {
                 throw UnexpectedReference(ctx, expectedRef)
+
             }
-            expectType(ctx.expr_, expectedRef.inner)
         }
 
         override fun visitConstMemory(ctx: stellaParser.ConstMemoryContext) {
-            if (expectedType !is RefType) {
+            if (expectedType !is RefType && expectedType !is TopType) {
                 throw UnexpectedMemoryAddress(ctx, expectedType)
             }
         }
@@ -716,6 +809,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             expectType(ctx.tryExpr, expectedType)
             expectType(ctx.fallbackExpr, expectedType)
         }
+
 
     }
 
@@ -819,8 +913,14 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
     }
 
     override fun visitProgram(ctx: stellaParser.ProgramContext) {
+        fun hasExtension(ext: String): Boolean {
+            return ctx.extensions
+                .filterIsInstance<stellaParser.AnExtensionContext>()
+                .any { anExt -> anExt.extensionNames.any { it.text == ext } }
+        }
+        typeContext.isSubTypingEnabled = hasExtension("#structural-subtyping")
+        typeContext.isAmbiguousTypeAsBottom = hasExtension("#ambiguous-type-as-bottom")
         ctx.decls.forEach { it.accept(this) }
-
         val main = ctx.decls.filterIsInstance<stellaParser.DeclFunContext>().firstOrNull { it.name.text == "main" }
         if (main == null)
             throw MainMissing()

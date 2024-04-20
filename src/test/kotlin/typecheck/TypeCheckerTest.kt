@@ -83,13 +83,15 @@ class TypeCheckerTest {
     @Test
     fun fastTest(){
         val source = """
-       language core;
-extend with #exceptions, #exception-type-declaration;
-fn fail(n : Nat) -> Bool {
-  return true
-}
-fn main(n : Nat) -> Bool {
-  return try { throw(n) } catch { a => true }
+language core;
+
+extend with #natural-literals,
+            #top-type,
+            #bottom-type,
+            #structural-subtyping;
+
+fn main(b : Bool) -> Bot {
+    return 1
 }
         """.trimIndent()
 
