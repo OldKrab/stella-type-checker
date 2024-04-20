@@ -900,6 +900,8 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         return patternBindings.flatMap {
             val params = declarePattern(it.pat, null)
             val rhsType = inferType(it.rhs)
+            declarePattern(it.pat, rhsType)
+
             if (!checkExhaustivePatterns(rhsType, listOf(it.pat)))
                 throw NonExhaustiveLetPatterns(it)
             params
