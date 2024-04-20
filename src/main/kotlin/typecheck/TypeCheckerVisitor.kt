@@ -247,7 +247,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 return ctx.patterns.flatMap { declarePattern(it, null) }
             }
 
-            override fun visitPatternCastAs(ctx: stellaParser.PatternCastAsContext): List<String>  {
+            override fun visitPatternCastAs(ctx: stellaParser.PatternCastAsContext): List<String> {
                 val castType = convertType(ctx.type_)
                 throwIfNotExpected(ctx, castType)
                 return declarePattern(ctx.pattern_, expectedType)
@@ -273,7 +273,11 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitVariant(ctx: stellaParser.VariantContext): Type {
-            if (typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isSubTypingEnabled) {
+                val label = ctx.label.text
+                val type = inferType(ctx.rhs)
+                return VariantType(listOf(label), mapOf(label to type))
+            }
             throw AmbiguousVariantType(ctx)
         }
 
@@ -398,7 +402,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         override fun visitList(ctx: stellaParser.ListContext): Type {
             if (ctx.exprs.size == 0) {
-                if (typeContext.isAmbiguousTypeAsBottom) return BotType
+                if (typeContext.isAmbiguousTypeAsBottom) return ListType(BotType)
                 throw AmbiguousList(ctx) // can not infer without expected type
             }
             val firstType = inferType(ctx.exprs[0])
@@ -419,12 +423,18 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
 
         override fun visitInl(ctx: stellaParser.InlContext): Type {
-            if (typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isAmbiguousTypeAsBottom && typeContext.isSubTypingEnabled){
+                val t = inferType(ctx.expr_)
+                return SumType(t, BotType)
+            }
             throw AmbiguousSumType(ctx)
         }
 
         override fun visitInr(ctx: stellaParser.InrContext): Type {
-            if (typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isAmbiguousTypeAsBottom && typeContext.isSubTypingEnabled){
+                val t = inferType(ctx.expr_)
+                return SumType(BotType, t)
+            }
             throw AmbiguousSumType(ctx)
         }
 
@@ -450,7 +460,6 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitConstMemory(ctx: stellaParser.ConstMemoryContext): Type {
-            if (typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousRef(ctx)
         }
 
@@ -533,7 +542,11 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         fun checkFuncSubType(ctx: ParserRuleContext, subType: FunType, baseType: FunType) {
             checkSubTypeOf(ctx, subType.retType, baseType.retType)
-            if (baseType.paramsTypes.size != subType.paramsTypes.size) throw IncorrectNumberOfArguments(ctx, baseType.paramsTypes.size, subType.paramsTypes.size)
+            if (baseType.paramsTypes.size != subType.paramsTypes.size) throw IncorrectNumberOfArguments(
+                ctx,
+                baseType.paramsTypes.size,
+                subType.paramsTypes.size
+            )
             baseType.paramsTypes.zip(subType.paramsTypes)
                 .forEach { (baseParam, subParam) -> checkSubTypeOf(ctx, baseParam, subParam) }
         }
@@ -551,6 +564,9 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 checkFuncSubType(ctx, subType, baseType)
             } else if (subType is TupleType && baseType is TupleType) {
                 checkTupleSubTyping(ctx, subType, baseType)
+            } else if (subType is SumType && baseType is SumType) {
+                checkSubTypeOf(ctx, subType.inl, baseType.inl)
+                checkSubTypeOf(ctx, subType.inr, baseType.inr)
             } else if (subType != baseType)
                 throw UnexpectedSubType(ctx, baseType, subType)
         }
@@ -830,7 +846,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
 
-        override fun visitTryCastAs(ctx: stellaParser.TryCastAsContext){
+        override fun visitTryCastAs(ctx: stellaParser.TryCastAsContext) {
             inferType(ctx.tryExpr)
             val t = convertType(ctx.type_)
             visitTryWithPattern(ctx.pattern_, t) {
