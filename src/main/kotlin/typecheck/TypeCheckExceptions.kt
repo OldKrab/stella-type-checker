@@ -275,6 +275,15 @@ class UnexpectedNumberOfLambdaParameters(expr: ParserRuleContext, private val ex
     override fun getDescription(): String = "Expected $expectedNumber of parameters in lambda, but got $actualNumber"
 }
 
+class MissingTypeForLabel(expr: ParserRuleContext, private val variantType: VariantType, private val expectedLabelType: Type, private val label: String) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_MISSING_TYPE_FOR_LABEL"
+    override fun getDescription(): String = "Label '$label' in variant $variantType expect data of type $expectedLabelType, but type missing"
+}
+
+class UnexpectedTypeForNullaryLabel(expr: ParserRuleContext, private val variantType: VariantType, private val label: String) : ExprException(expr) {
+    override fun getTag(): String = "ERROR_UNEXPECTED_TYPE_FOR_NULLARY_LABEL"
+    override fun getDescription(): String = "Label '$label' in variant $variantType is nullary, but unexpected type given"
+}
 
 
 

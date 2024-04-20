@@ -502,25 +502,17 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 throw MissingRecordFields(ctx, baseType, missingFields)
         }
 
-        fun checkNullableVariantField(
-            ctx: ParserRuleContext,
-            variantType: VariantType,
-            label: String,
-            isActualNull: Boolean
-        ) {
-            val expectedLabelType = variantType.variantsTypes[label]
-            if (isActualNull && expectedLabelType != null)
-                throw MissingDataForLabel(ctx, variantType, expectedLabelType, label)
-            if (!isActualNull && expectedLabelType == null)
-                throw UnexpectedDataForNullaryLabel(ctx, variantType, label)
-        }
 
         fun checkVariantsSubTyping(ctx: ParserRuleContext, subType: VariantType, baseType: VariantType) {
             val extraFields = subType.variantsTypes.keys - baseType.variantsTypes.keys
             if (extraFields.isNotEmpty()) throw UnexpectedVariantLabel(ctx, baseType, extraFields.first())
             for ((subFieldName, subFieldType) in subType.variantsTypes.entries) {
                 val baseFieldType = baseType.variantsTypes.getValue(subFieldName)
-                checkNullableVariantField(ctx, baseType, subFieldName, subFieldType == null)
+                val baseLabelType = baseType.variantsTypes[subFieldName]
+                if (subFieldType == null && baseLabelType != null)
+                    throw MissingTypeForLabel(ctx, baseType, baseLabelType, subFieldName)
+                if (subFieldType != null && baseLabelType == null)
+                    throw UnexpectedTypeForNullaryLabel(ctx, baseType, subFieldName)
                 if (subFieldType != null && baseFieldType != null)
                     checkSubTypeOf(ctx, subFieldType, baseFieldType)
             }
@@ -535,7 +527,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
         fun checkFuncSubType(ctx: ParserRuleContext, subType: FunType, baseType: FunType) {
             checkSubTypeOf(ctx, subType.retType, baseType.retType)
-            if (baseType.paramsTypes.size != subType.paramsTypes.size) throw UnexpectedSubType(ctx, baseType, subType)
+            if (baseType.paramsTypes.size != subType.paramsTypes.size) throw IncorrectNumberOfArguments(ctx, baseType.paramsTypes.size, subType.paramsTypes.size)
             baseType.paramsTypes.zip(subType.paramsTypes)
                 .forEach { (baseParam, subParam) -> checkSubTypeOf(ctx, baseParam, subParam) }
         }
@@ -742,10 +734,13 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             val label = ctx.label.text
             if (!expectedType.variantsTypes.containsKey(label))
                 throw UnexpectedVariantLabel(ctx, expectedType, label)
-            val variantType = expectedType.variantsTypes.getValue(label)
-            checkNullableVariantField(ctx, expectedType, label, ctx.rhs == null)
-            if (variantType != null)
-                expectType(ctx.rhs, variantType)
+            val expectedFieldType = expectedType.variantsTypes.getValue(label)
+            if (ctx.rhs == null && expectedFieldType != null)
+                throw MissingDataForLabel(ctx, expectedType, expectedFieldType, label)
+            if (ctx.rhs != null && expectedFieldType == null)
+                throw UnexpectedDataForNullaryLabel(ctx, expectedType, label)
+            if (ctx.rhs != null && expectedFieldType != null)
+                expectType(ctx.rhs, expectedFieldType)
         }
 
         override fun visitInl(ctx: stellaParser.InlContext) {
