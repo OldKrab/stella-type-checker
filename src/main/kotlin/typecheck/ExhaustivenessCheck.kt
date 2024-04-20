@@ -53,11 +53,28 @@ private fun getRecordPattern(pat: PatternRecordContext, type: RecordType): Patte
         .sortedBy { it.label.text }.map { getPattern(it.pattern_, type.fieldsTypes.getValue(it.label.text)) })
 }
 
+private fun getTuplePattern(pat: PatternTupleContext, type: TupleType): Pattern {
+    val ctor = TupleCtor(pat.patterns.size)
+    return CtorPattern(ctor, pat.patterns.zip(type.fieldsTypes).map { getPattern(it.first, it.second) })
+}
+
 private fun getVariantPattern(pat: PatternVariantContext, varType: VariantType): Pattern {
     val label = pat.label.text
     val elemType = varType.variantsTypes.getValue(label)
     val elemPat = if (elemType == null) emptyList() else listOf(getPattern(pat.pattern_, elemType))
     return CtorPattern(VariantCtor(elemType == null, label, varType), elemPat)
+}
+
+private fun getInlPattern(pat: PatternInlContext, varType: SumType): Pattern {
+    val elemType = varType.inl
+    val elemPat = listOf(getPattern(pat.pattern_, elemType))
+    return CtorPattern(InlCtor, elemPat)
+}
+
+private fun getInrPattern(pat: PatternInrContext, varType: SumType): Pattern {
+    val elemType = varType.inr
+    val elemPat = listOf(getPattern(pat.pattern_, elemType))
+    return CtorPattern(InrCtor, elemPat)
 }
 
 
@@ -71,9 +88,9 @@ private fun getPattern(pat: PatternContext, type: Type): Pattern {
         is PatternConsContext -> getConsPattern(pat, type as ListType)
         is PatternSuccContext -> CtorPattern(SuccCtor, listOf(getPattern(pat.pattern_, type)))
         is PatternRecordContext -> getRecordPattern(pat, type as RecordType)
-        is PatternInlContext -> CtorPattern(InlCtor, listOf(getPattern(pat.pattern_, type)))
-        is PatternInrContext -> CtorPattern(InrCtor, listOf(getPattern(pat.pattern_, type)))
-        is PatternTupleContext -> CtorPattern(TupleCtor(pat.patterns.size), pat.patterns.map { getPattern(it, type) })
+        is PatternInlContext -> getInlPattern(pat, type as SumType)
+        is PatternInrContext -> getInrPattern(pat, type as SumType)
+        is PatternTupleContext -> getTuplePattern(pat, type as TupleType)
         is PatternVariantContext -> getVariantPattern(pat, type as VariantType)
         is PatternUnitContext -> CtorPattern(UnitCtor)
         else -> throw NotImplementedError("For ${pat::class.simpleName}")

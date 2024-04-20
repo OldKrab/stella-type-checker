@@ -85,9 +85,18 @@ class TypeCheckerTest {
         val source = """
 language core;
 
+extend with #structural-patterns, #type-cast-patterns, #natural-literals, #multiparameter-functions, #arithmetic-operators, #tuples, #records, #pattern-ascriptions, #structural-subtyping;
 
-fn main(b : Bool) -> Nat {
-    return 1
+fn vectorSum(v1 : {x : Nat}, v2 : {x : Nat}) -> {x : Nat} {
+  return
+   match {v1, v2} {
+      {{x = x1, y = y1}, {x = x2, y = y2}} cast as {{x : Nat, y : Nat}, {x : Nat, y : Nat}} => {x = x2, y = y1}
+    | {{x = x1}, {x = x2}} => {x = x1}
+    }
+}
+
+fn main(n : Nat) -> Nat {
+  return n
 }
         """.trimIndent()
 

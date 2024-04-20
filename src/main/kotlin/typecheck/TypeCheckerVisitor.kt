@@ -167,8 +167,10 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
             fun throwIfNotExpected(ctx: PatternContext, actualType: Type) {
                 val expectedType = this.expectedType
-                if (expectedType != null && expectedType != actualType)
-                    throw UnexpectedPatternForType(ctx, expectedType)
+                if (expectedType != null) {
+                    if (expectedType != actualType)
+                        throw UnexpectedPatternForType(ctx, expectedType)
+                }
             }
 
             override fun visitPatternTrue(ctx: PatternTrueContext): List<String> {
@@ -249,8 +251,11 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
             override fun visitPatternCastAs(ctx: stellaParser.PatternCastAsContext): List<String> {
                 val castType = convertType(ctx.type_)
-                throwIfNotExpected(ctx, castType)
-                return declarePattern(ctx.pattern_, expectedType)
+                if (typeContext.isSubTypingEnabled)
+                    expectedType?.let { checkSubTypeOf(ctx, castType, it) }
+                else
+                    throwIfNotExpected(ctx, castType)
+                return declarePattern(ctx.pattern_, castType)
             }
         }
 
@@ -423,7 +428,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
 
         override fun visitInl(ctx: stellaParser.InlContext): Type {
-            if (typeContext.isAmbiguousTypeAsBottom && typeContext.isSubTypingEnabled){
+            if (typeContext.isAmbiguousTypeAsBottom && typeContext.isSubTypingEnabled) {
                 val t = inferType(ctx.expr_)
                 return SumType(t, BotType)
             }
@@ -431,7 +436,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitInr(ctx: stellaParser.InrContext): Type {
-            if (typeContext.isAmbiguousTypeAsBottom && typeContext.isSubTypingEnabled){
+            if (typeContext.isAmbiguousTypeAsBottom && typeContext.isSubTypingEnabled) {
                 val t = inferType(ctx.expr_)
                 return SumType(BotType, t)
             }
@@ -510,66 +515,6 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
     private val typeExpectVisitor = object : ParametrizedVisitor<Type, Unit>("expect type of") {
         val expectedType
             get() = arg!!
-
-        fun checkMissingRecordFields(ctx: ParserRuleContext, subFields: Set<String>, baseType: RecordType) {
-            val missingFields = baseType.fieldsTypes.keys - subFields
-            if (missingFields.isNotEmpty())
-                throw MissingRecordFields(ctx, baseType, missingFields)
-        }
-
-
-        fun checkVariantsSubTyping(ctx: ParserRuleContext, subType: VariantType, baseType: VariantType) {
-            val extraFields = subType.variantsTypes.keys - baseType.variantsTypes.keys
-            if (extraFields.isNotEmpty()) throw UnexpectedVariantLabel(ctx, baseType, extraFields.first())
-            for ((subFieldName, subFieldType) in subType.variantsTypes.entries) {
-                val baseFieldType = baseType.variantsTypes.getValue(subFieldName)
-                val baseLabelType = baseType.variantsTypes[subFieldName]
-                if (subFieldType == null && baseLabelType != null)
-                    throw MissingTypeForLabel(ctx, baseType, baseLabelType, subFieldName)
-                if (subFieldType != null && baseLabelType == null)
-                    throw UnexpectedTypeForNullaryLabel(ctx, baseType, subFieldName)
-                if (subFieldType != null && baseFieldType != null)
-                    checkSubTypeOf(ctx, subFieldType, baseFieldType)
-            }
-        }
-
-        fun checkTupleSubTyping(ctx: ParserRuleContext, subType: TupleType, baseType: TupleType) {
-            if (baseType.fieldsTypes.size != subType.fieldsTypes.size)
-                throw UnexpectedTupleLength(ctx, subType.fieldsTypes.size, baseType.fieldsTypes.size)
-            for ((baseFieldType, subFieldType) in baseType.fieldsTypes.zip(subType.fieldsTypes))
-                checkSubTypeOf(ctx, subFieldType, baseFieldType)
-        }
-
-        fun checkFuncSubType(ctx: ParserRuleContext, subType: FunType, baseType: FunType) {
-            checkSubTypeOf(ctx, subType.retType, baseType.retType)
-            if (baseType.paramsTypes.size != subType.paramsTypes.size) throw IncorrectNumberOfArguments(
-                ctx,
-                baseType.paramsTypes.size,
-                subType.paramsTypes.size
-            )
-            baseType.paramsTypes.zip(subType.paramsTypes)
-                .forEach { (baseParam, subParam) -> checkSubTypeOf(ctx, baseParam, subParam) }
-        }
-
-        fun checkSubTypeOf(ctx: ParserRuleContext, subType: Type, baseType: Type) {
-            if (baseType is TopType || subType is BotType) return
-            else if (subType is RecordType && baseType is RecordType) {
-                checkMissingRecordFields(ctx, subType.fieldsTypes.keys, baseType)
-                baseType.fieldsTypes.entries.forEach { (baseFieldName, baseFieldType) ->
-                    checkSubTypeOf(ctx, subType.fieldsTypes.getValue(baseFieldName), baseFieldType)
-                }
-            } else if (subType is VariantType && baseType is VariantType) {
-                checkVariantsSubTyping(ctx, subType, baseType)
-            } else if (subType is FunType && baseType is FunType) {
-                checkFuncSubType(ctx, subType, baseType)
-            } else if (subType is TupleType && baseType is TupleType) {
-                checkTupleSubTyping(ctx, subType, baseType)
-            } else if (subType is SumType && baseType is SumType) {
-                checkSubTypeOf(ctx, subType.inl, baseType.inl)
-                checkSubTypeOf(ctx, subType.inr, baseType.inr)
-            } else if (subType != baseType)
-                throw UnexpectedSubType(ctx, baseType, subType)
-        }
 
 
         private fun throwIfNotExpected(ctx: ParserRuleContext, actualType: Type) {
@@ -910,6 +855,67 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 throw NonExhaustiveLetPatterns(it)
             params
         }
+    }
+
+
+    fun checkMissingRecordFields(ctx: ParserRuleContext, subFields: Set<String>, baseType: RecordType) {
+        val missingFields = baseType.fieldsTypes.keys - subFields
+        if (missingFields.isNotEmpty())
+            throw MissingRecordFields(ctx, baseType, missingFields)
+    }
+
+
+    fun checkVariantsSubTyping(ctx: ParserRuleContext, subType: VariantType, baseType: VariantType) {
+        val extraFields = subType.variantsTypes.keys - baseType.variantsTypes.keys
+        if (extraFields.isNotEmpty()) throw UnexpectedVariantLabel(ctx, baseType, extraFields.first())
+        for ((subFieldName, subFieldType) in subType.variantsTypes.entries) {
+            val baseFieldType = baseType.variantsTypes.getValue(subFieldName)
+            val baseLabelType = baseType.variantsTypes[subFieldName]
+            if (subFieldType == null && baseLabelType != null)
+                throw MissingTypeForLabel(ctx, baseType, baseLabelType, subFieldName)
+            if (subFieldType != null && baseLabelType == null)
+                throw UnexpectedTypeForNullaryLabel(ctx, baseType, subFieldName)
+            if (subFieldType != null && baseFieldType != null)
+                checkSubTypeOf(ctx, subFieldType, baseFieldType)
+        }
+    }
+
+    fun checkTupleSubTyping(ctx: ParserRuleContext, subType: TupleType, baseType: TupleType) {
+        if (baseType.fieldsTypes.size != subType.fieldsTypes.size)
+            throw UnexpectedTupleLength(ctx, subType.fieldsTypes.size, baseType.fieldsTypes.size)
+        for ((baseFieldType, subFieldType) in baseType.fieldsTypes.zip(subType.fieldsTypes))
+            checkSubTypeOf(ctx, subFieldType, baseFieldType)
+    }
+
+    fun checkFuncSubType(ctx: ParserRuleContext, subType: FunType, baseType: FunType) {
+        checkSubTypeOf(ctx, subType.retType, baseType.retType)
+        if (baseType.paramsTypes.size != subType.paramsTypes.size) throw IncorrectNumberOfArguments(
+            ctx,
+            baseType.paramsTypes.size,
+            subType.paramsTypes.size
+        )
+        baseType.paramsTypes.zip(subType.paramsTypes)
+            .forEach { (baseParam, subParam) -> checkSubTypeOf(ctx, baseParam, subParam) }
+    }
+
+    fun checkSubTypeOf(ctx: ParserRuleContext, subType: Type, baseType: Type) {
+        if (baseType is TopType || subType is BotType) return
+        else if (subType is RecordType && baseType is RecordType) {
+            checkMissingRecordFields(ctx, subType.fieldsTypes.keys, baseType)
+            baseType.fieldsTypes.entries.forEach { (baseFieldName, baseFieldType) ->
+                checkSubTypeOf(ctx, subType.fieldsTypes.getValue(baseFieldName), baseFieldType)
+            }
+        } else if (subType is VariantType && baseType is VariantType) {
+            checkVariantsSubTyping(ctx, subType, baseType)
+        } else if (subType is FunType && baseType is FunType) {
+            checkFuncSubType(ctx, subType, baseType)
+        } else if (subType is TupleType && baseType is TupleType) {
+            checkTupleSubTyping(ctx, subType, baseType)
+        } else if (subType is SumType && baseType is SumType) {
+            checkSubTypeOf(ctx, subType.inl, baseType.inl)
+            checkSubTypeOf(ctx, subType.inr, baseType.inr)
+        } else if (subType != baseType)
+            throw UnexpectedSubType(ctx, baseType, subType)
     }
 
     fun declareLetBindingsWithoutTypeCheck(patternBindings: List<PatternBindingContext>): List<String> {
