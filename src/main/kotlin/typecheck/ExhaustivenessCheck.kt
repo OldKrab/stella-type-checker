@@ -181,7 +181,7 @@ fun checkExhaustivePatterns(
     patternContexts: List<PatternContext>
 ): Boolean {
 
-    val patterns = patternContexts.map { expandPattern(it) }
+    val patterns = patternContexts.filter {it !is PatternCastAsContext}.map { expandPattern(it) }
     if (patterns.any { it.isVarPattern() })
         return true
     try {

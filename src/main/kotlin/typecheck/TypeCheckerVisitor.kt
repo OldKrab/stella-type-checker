@@ -246,6 +246,12 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
                 }
                 return ctx.patterns.flatMap { declarePattern(it, null) }
             }
+
+            override fun visitPatternCastAs(ctx: stellaParser.PatternCastAsContext): List<String>  {
+                val castType = convertType(ctx.type_)
+                throwIfNotExpected(ctx, castType)
+                return declarePattern(ctx.pattern_, expectedType)
+            }
         }
 
 
