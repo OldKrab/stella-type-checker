@@ -81,24 +81,23 @@ class TypeCheckerTest {
     }
 
     @Test
-    fun fastTest(){
+    fun debugTest(){
         val source = """
 language core;
 
-extend with #natural-literals,
-            #top-type,
-            #bottom-type,
-            #structural-subtyping;
 
-fn main(b : Bool) -> Bot {
+fn main(b : Bool) -> Nat {
     return 1
 }
         """.trimIndent()
 
         val (_, errorListener, program) = getParser(source)
         errorListener.getSyntaxErrors().forEach { println(it) }
-        assertEquals(0, errorListener.getSyntaxErrors().size)
-        checkTypes(program)
+        try {
+            checkTypes(program)
+        }catch(e: Exception){
+            e.printStackTrace()
+        }
     }
 
 

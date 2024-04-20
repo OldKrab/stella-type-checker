@@ -267,7 +267,7 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitVariant(ctx: stellaParser.VariantContext): Type {
-            if(typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousVariantType(ctx)
         }
 
@@ -391,8 +391,8 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
 
         override fun visitList(ctx: stellaParser.ListContext): Type {
-            if (ctx.exprs.size == 0){
-                if(typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (ctx.exprs.size == 0) {
+                if (typeContext.isAmbiguousTypeAsBottom) return BotType
                 throw AmbiguousList(ctx) // can not infer without expected type
             }
             val firstType = inferType(ctx.exprs[0])
@@ -413,12 +413,12 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
 
         override fun visitInl(ctx: stellaParser.InlContext): Type {
-            if(typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousSumType(ctx)
         }
 
         override fun visitInr(ctx: stellaParser.InrContext): Type {
-            if(typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousSumType(ctx)
         }
 
@@ -444,17 +444,17 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
         }
 
         override fun visitConstMemory(ctx: stellaParser.ConstMemoryContext): Type {
-            if(typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousRef(ctx)
         }
 
         override fun visitPanic(ctx: stellaParser.PanicContext): Type {
-            if(typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousPanic(ctx)
         }
 
         override fun visitThrow(ctx: stellaParser.ThrowContext): Type {
-            if(typeContext.isAmbiguousTypeAsBottom) return BotType
+            if (typeContext.isAmbiguousTypeAsBottom) return BotType
             throw AmbiguousThrow(ctx)
         }
 
@@ -472,6 +472,20 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             return t
         }
 
+        override fun visitTypeCast(ctx: stellaParser.TypeCastContext): Type {
+            inferType(ctx.expr_)
+            return convertType(ctx.type_)
+        }
+
+        override fun visitTryCastAs(ctx: stellaParser.TryCastAsContext): Type {
+            inferType(ctx.tryExpr)
+            val t = convertType(ctx.type_)
+            return visitTryWithPattern(ctx.pattern_, t) {
+                val exprT = inferType(ctx.expr_)
+                expectType(ctx.fallbackExpr, exprT)
+                exprT
+            }
+        }
     }
 
 
@@ -810,7 +824,19 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
             expectType(ctx.fallbackExpr, expectedType)
         }
 
+        override fun visitTypeCast(ctx: stellaParser.TypeCastContext) {
+            inferType(ctx.expr_)
+        }
 
+
+        override fun visitTryCastAs(ctx: stellaParser.TryCastAsContext){
+            inferType(ctx.tryExpr)
+            val t = convertType(ctx.type_)
+            visitTryWithPattern(ctx.pattern_, t) {
+                expectType(ctx.expr_, expectedType)
+                expectType(ctx.fallbackExpr, expectedType)
+            }
+        }
     }
 
     fun getVarType(ctx: stellaParser.VarContext): Type {
@@ -906,7 +932,11 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
     fun <T> visitCatch(ctx: stellaParser.TryCatchContext, action: () -> T): T {
         val exceptionsType = typeContext.exceptionsType ?: throw ExceptionTypeNotDeclared(ctx.pat)
-        val vars = declarePattern(ctx.pat, exceptionsType)
+        return visitTryWithPattern(ctx.pat, exceptionsType, action)
+    }
+
+    fun <T> visitTryWithPattern(pat: PatternContext, patType: Type, action: () -> T): T {
+        val vars = declarePattern(pat, patType)
         val res = action()
         forgetAll(vars)
         return res
@@ -930,6 +960,18 @@ class TypeCheckerVisitor : UnimplementedStellaVisitor<Unit>("typecheck") {
 
     override fun visitDeclExceptionType(ctx: stellaParser.DeclExceptionTypeContext) {
         typeContext.exceptionsType = convertType(ctx.exceptionType)
+    }
+
+    override fun visitDeclExceptionVariant(ctx: stellaParser.DeclExceptionVariantContext) {
+        val label = ctx.name.text
+        val type = convertType(ctx.variantType)
+        val exType = typeContext.exceptionsType
+        if (exType is VariantType) {
+            typeContext.exceptionsType = VariantType(exType.fields + label, exType.variantsTypes + (label to type))
+        } else {
+            typeContext.exceptionsType = VariantType(listOf(label), mapOf(label to type))
+        }
+
     }
 
     // Top level functions declarations
